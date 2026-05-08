@@ -2,20 +2,9 @@
 
 Surfaces activity analytics inside Mattermost: top channels, top reactions, top threads, top DMs, top inactive channels, and new team members. Each insight is available across **today**, **7-day**, and **28-day** windows, scoped either to a whole team or to your personal activity. The Insights surface mounts as a top-level product in the team switcher.
 
-## Insights at a glance
-
-| Insight | Team scope | My scope | Notes |
-| --- | --- | --- | --- |
-| Top Channels | ✅ | ✅ | Most active channels by message count, plus a per-bucket post-count chart (hourly for "today", daily otherwise) |
-| Top Reactions | ✅ | ✅ | Most-used emoji reactions |
-| Top Threads | ✅ | ✅ | Most active threads, with channel name, root-post author, and participants |
-| Top DMs | — | ✅ | Direct-message partners by message count, with outgoing share and partner profile |
-| Top Inactive Channels | ✅ | ✅ | Channels with the least activity, with participant ids |
-| New Team Members | ✅ | — | Members who joined in the selected window, with `total_count` for pagination |
-
 ## Requirements
 
-- Mattermost Server 11.3.0 or newer
+- Mattermost Server 11.3.0+
 - PostgreSQL — Mattermost has dropped MySQL support, so the plugin targets PostgreSQL exclusively
 - Mattermost **Professional**, **Enterprise**, or **Enterprise Advanced** license — required for the team-scoped insights; my-scope insights work on any license
 
