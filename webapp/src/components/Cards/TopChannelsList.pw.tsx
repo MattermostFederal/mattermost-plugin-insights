@@ -83,6 +83,7 @@ test('top channel gets full-width bar; second channel gets a proportional bar', 
     await expect(bars).toHaveCount(2);
     const firstFlex = await bars.nth(0).evaluate((el) => (el as HTMLElement).style.flex);
     const secondFlex = await bars.nth(1).evaluate((el) => (el as HTMLElement).style.flex);
+
     // 0.8 * (42/42) = 0.8 ; 0.8 * (21/42) = 0.4
     expect(firstFlex).toContain('0.8 ');
     expect(secondFlex).toContain('0.4 ');

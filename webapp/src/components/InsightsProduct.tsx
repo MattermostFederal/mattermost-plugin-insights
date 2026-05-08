@@ -1,10 +1,10 @@
 import React, {useEffect} from 'react';
 import {useSelector} from 'react-redux';
 
+import {InsightsPage} from './Page/InsightsPage';
+
 import {getCurrentTeamId, getCurrentUserId} from '../redux/mmSelectors';
 import {trackInsightsEvent} from '../utils/telemetry';
-
-import {InsightsPage} from './Page/InsightsPage';
 
 // Mirrors the deprecated `LocalStorageStore.setPenultimate/PreviousViewedType`
 // behavior in `insights.tsx`. The host webapp persists which "page type"

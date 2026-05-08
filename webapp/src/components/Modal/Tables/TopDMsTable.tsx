@@ -15,6 +15,8 @@ import React, {memo, useCallback, useMemo} from 'react';
 import {FormattedMessage} from 'react-intl';
 import {useSelector} from 'react-redux';
 
+import type {TableProps} from './types';
+
 import {Client} from '../../../client/Client';
 import {getCurrentTeamName} from '../../../redux/mmSelectors';
 import type {TopDM} from '../../../types';
@@ -24,8 +26,6 @@ import {HostAvatar} from '../../Avatar/HostAvatar';
 import type {Column, Row} from '../../DataGrid/DataGrid';
 import {DataGrid} from '../../DataGrid/DataGrid';
 import {usePaginatedTable} from '../usePaginatedTable';
-
-import type {TableProps} from './types';
 
 function partnerName(d: TopDM): string {
     const u = d.second_participant;
@@ -46,30 +46,45 @@ const TopDMsTableComponent: React.FC<TableProps> = ({timeRange}) => {
 
     const columns = useMemo<Column[]>(() => [
         {
-            name: <FormattedMessage id='insights.topReactions.rank' defaultMessage='Rank'/>,
+            name: <FormattedMessage
+                id='insights.topReactions.rank'
+                defaultMessage='Rank'
+                  />,
             field: 'rank',
             className: 'rankCell',
             width: 0.05,
         },
         {
-            name: <FormattedMessage id='insights.topDMs.user' defaultMessage='User'/>,
+            name: <FormattedMessage
+                id='insights.topDMs.user'
+                defaultMessage='User'
+                  />,
             field: 'user',
             width: 0.4,
         },
         {
-            name: <FormattedMessage id='insights.topDMs.sentMessages' defaultMessage='Sent'/>,
+            name: <FormattedMessage
+                id='insights.topDMs.sentMessages'
+                defaultMessage='Sent'
+                  />,
             field: 'sent',
             className: 'message-count',
             width: 0.15,
         },
         {
-            name: <FormattedMessage id='insights.topDMs.receivedMessages' defaultMessage='Received'/>,
+            name: <FormattedMessage
+                id='insights.topDMs.receivedMessages'
+                defaultMessage='Received'
+                  />,
             field: 'received',
             className: 'message-count',
             width: 0.15,
         },
         {
-            name: <FormattedMessage id='insights.topDMs.totalMessages' defaultMessage='Total messages'/>,
+            name: <FormattedMessage
+                id='insights.topDMs.totalMessages'
+                defaultMessage='Total messages'
+                  />,
             field: 'total',
             width: 0.25,
         },
@@ -77,7 +92,7 @@ const TopDMsTableComponent: React.FC<TableProps> = ({timeRange}) => {
 
     const rows = useMemo<Row[]>(() => table.items.map((dm, i) => ({
         cells: {
-            rank: <span className='cell-text'>{table.page * table.perPage + i + 1}</span>,
+            rank: <span className='cell-text'>{(table.page * table.perPage) + i + 1}</span>,
             user: (
                 <div className='user-info'>
                     <HostAvatar
@@ -98,8 +113,8 @@ const TopDMsTableComponent: React.FC<TableProps> = ({timeRange}) => {
         } : undefined,
     })), [table.items, table.page, table.perPage, teamName]);
 
-    const startCount = table.page * table.perPage + 1;
-    const endCount = startCount + table.items.length - 1;
+    const startCount = (table.page * table.perPage) + 1;
+    const endCount = (startCount + table.items.length) - 1;
     const total = table.hasNext ? endCount + 1 : endCount;
 
     return (

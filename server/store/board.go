@@ -8,8 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/MattermostFederal/mattermost-plugin-insights/server/insights"
 	"github.com/lib/pq"
+
+	"github.com/MattermostFederal/mattermost-plugin-insights/server/insights"
 )
 
 // SQL ported from

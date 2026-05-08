@@ -24,9 +24,6 @@ const Modal = BootstrapModal as unknown as React.ComponentType<Record<string, un
     Body: React.ComponentType<Record<string, unknown>>;
 };
 
-import type {Scope, TimeRange} from '../../types';
-import {TimeRangeSelect} from '../Controls/TimeRangeSelect';
-
 import {LeastActiveChannelsTable} from './Tables/LeastActiveChannelsTable';
 import {NewMembersTable} from './Tables/NewMembersTable';
 import {TopBoardsTable} from './Tables/TopBoardsTable';
@@ -35,6 +32,9 @@ import {TopDMsTable} from './Tables/TopDMsTable';
 import {TopPlaybooksTable} from './Tables/TopPlaybooksTable';
 import {TopReactionsTable} from './Tables/TopReactionsTable';
 import {TopThreadsTable} from './Tables/TopThreadsTable';
+
+import type {Scope, TimeRange} from '../../types';
+import {TimeRangeSelect} from '../Controls/TimeRangeSelect';
 
 export type InsightsWidgetType =
     | 'topReactions'

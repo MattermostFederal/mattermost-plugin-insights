@@ -89,6 +89,7 @@ test('clicking "Leave channel" on a private channel opens a confirmation modal',
     );
     await component.locator('.channel-action__toggle').click();
     await component.locator('.channel-action__menu-item--danger').click();
+
     // The bootstrap modal portals to body — assert at page level.
     await expect(page.getByText('Leave private channel').first()).toBeVisible();
     await expect(page.getByText('Yes, leave channel')).toBeVisible();

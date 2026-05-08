@@ -9,12 +9,12 @@ test('hits the user route, renders rows, and paginates', async ({mount, page}) =
         const url = new URL(route.request().url());
         const reqPage = Number(url.searchParams.get('page') || '0');
         pageRequested = reqPage;
-        const items = reqPage === 0
-            ? [
+        const items = reqPage === 0 ?
+            [
                 {emoji_name: 'smile', count: 10},
                 {emoji_name: 'joy', count: 6},
-            ]
-            : [{emoji_name: 'fire', count: 4}];
+            ] :
+            [{emoji_name: 'fire', count: 4}];
         route.fulfill({
             status: 200,
             contentType: 'application/json',

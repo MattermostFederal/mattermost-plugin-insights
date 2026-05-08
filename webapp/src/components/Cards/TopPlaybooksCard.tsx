@@ -1,12 +1,12 @@
 import React, {useEffect} from 'react';
 import {useDispatch, useSelector} from 'react-redux';
 
+import {TopPlaybooksList} from './TopPlaybooksList';
+
 import {requestTopPlaybooks} from '../../redux/actions';
 import {selectTopPlaybooks} from '../../redux/selectors';
 import type {Scope, TimeRange} from '../../types';
 import {WidgetCard} from '../Card/widgetHoc';
-
-import {TopPlaybooksList} from './TopPlaybooksList';
 
 interface Props {
     scope: Scope;

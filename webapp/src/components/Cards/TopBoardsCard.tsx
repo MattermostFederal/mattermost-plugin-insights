@@ -1,12 +1,12 @@
 import React, {useEffect} from 'react';
 import {useDispatch, useSelector} from 'react-redux';
 
+import {TopBoardsList} from './TopBoardsList';
+
 import {requestTopBoards} from '../../redux/actions';
 import {selectTopBoards} from '../../redux/selectors';
 import type {Scope, TimeRange} from '../../types';
 import {WidgetCard} from '../Card/widgetHoc';
-
-import {TopBoardsList} from './TopBoardsList';
 
 interface Props {
     scope: Scope;

@@ -42,6 +42,7 @@ export function preloadEmojis(names: string[]): void {
         }
         seen.add(name);
         const url = `/api/v4/emoji/name/${encodeURIComponent(name)}/image`;
+
         // Image() preload is intentional — it triggers the same browser
         // cache fill as the eventual <img src=...> render.
         const img = new Image();

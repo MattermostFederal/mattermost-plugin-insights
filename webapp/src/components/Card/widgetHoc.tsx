@@ -17,8 +17,9 @@
 import React, {memo} from 'react';
 import {FormattedMessage} from 'react-intl';
 
-import type {Scope} from '../../types';
 import {InsightCard} from './InsightCard';
+
+import type {Scope} from '../../types';
 
 export type InsightsWidgetType =
     | 'topReactions'

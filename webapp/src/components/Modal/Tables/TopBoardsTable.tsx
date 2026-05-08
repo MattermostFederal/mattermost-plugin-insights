@@ -15,6 +15,8 @@
 import React, {memo, useCallback, useMemo} from 'react';
 import {FormattedMessage} from 'react-intl';
 
+import type {TableProps} from './types';
+
 import {Client} from '../../../client/Client';
 import type {TopBoard} from '../../../types';
 import {navigateTo} from '../../../utils/navigation';
@@ -22,8 +24,6 @@ import {trackInsightsEvent} from '../../../utils/telemetry';
 import type {Column, Row} from '../../DataGrid/DataGrid';
 import {DataGrid} from '../../DataGrid/DataGrid';
 import {usePaginatedTable} from '../usePaginatedTable';
-
-import type {TableProps} from './types';
 
 interface MMComponents {
     imageURLForUser?: (userID: string, lastPictureUpdate?: number) => string;
@@ -83,23 +83,35 @@ const TopBoardsTableComponent: React.FC<TableProps> = ({scope, timeRange, teamId
 
     const columns = useMemo<Column[]>(() => [
         {
-            name: <FormattedMessage id='insights.topReactions.rank' defaultMessage='Rank'/>,
+            name: <FormattedMessage
+                id='insights.topReactions.rank'
+                defaultMessage='Rank'
+                  />,
             field: 'rank',
             className: 'rankCell',
             width: 0.07,
         },
         {
-            name: <FormattedMessage id='insights.topBoardsTable.board' defaultMessage='Board'/>,
+            name: <FormattedMessage
+                id='insights.topBoardsTable.board'
+                defaultMessage='Board'
+                  />,
             field: 'board',
             width: 0.7,
         },
         {
-            name: <FormattedMessage id='insights.topBoardsTable.updates' defaultMessage='Updates'/>,
+            name: <FormattedMessage
+                id='insights.topBoardsTable.updates'
+                defaultMessage='Updates'
+                  />,
             field: 'updates',
             width: 0.08,
         },
         {
-            name: <FormattedMessage id='insights.topBoardsTable.participants' defaultMessage='Participants'/>,
+            name: <FormattedMessage
+                id='insights.topBoardsTable.participants'
+                defaultMessage='Participants'
+                  />,
             field: 'participants',
             width: 0.15,
         },
@@ -107,7 +119,7 @@ const TopBoardsTableComponent: React.FC<TableProps> = ({scope, timeRange, teamId
 
     const rows = useMemo<Row[]>(() => table.items.map((board, i) => ({
         cells: {
-            rank: <span className='cell-text'>{table.page * table.perPage + i + 1}</span>,
+            rank: <span className='cell-text'>{(table.page * table.perPage) + i + 1}</span>,
             board: (
                 <div className='board-item'>
                     <span className='board-icon'>{board.icon}</span>
@@ -123,8 +135,8 @@ const TopBoardsTableComponent: React.FC<TableProps> = ({scope, timeRange, teamId
         },
     })), [table.items, table.page, table.perPage, teamId]);
 
-    const startCount = table.page * table.perPage + 1;
-    const endCount = startCount + table.items.length - 1;
+    const startCount = (table.page * table.perPage) + 1;
+    const endCount = (startCount + table.items.length) - 1;
     const total = table.hasNext ? endCount + 1 : endCount;
 
     return (

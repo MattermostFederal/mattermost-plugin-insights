@@ -322,7 +322,7 @@ export default [
             'no-useless-rename': 'error',
             'no-useless-return': 'error',
             'no-var': 'off',
-            'no-void': 'error',
+            'no-void': ['error', {allowAsStatement: true}],
             'no-warning-comments': 'warn',
             'no-whitespace-before-property': 'error',
             'no-with': 'error',

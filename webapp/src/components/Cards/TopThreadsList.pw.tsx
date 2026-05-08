@@ -103,12 +103,12 @@ test('non-member click opens JoinChannelModal when compliance export is enabled'
         }}},
     );
     await component.locator('.thread-item').first().click();
+
     // Modal portals to body — assert at page level.
     await expect(page.getByText('Join channel?')).toBeVisible();
 });
 
 test('non-member click on a non-compliance server skips the modal and goes straight to RHS', async ({mount, page}) => {
-    let captured: string | undefined;
     const component = await mount(
         <TopThreadsList
             items={[sampleThread]}
@@ -134,7 +134,7 @@ test('non-member click on a non-compliance server skips the modal and goes strai
         };
     });
     await component.locator('.thread-item').first().click();
-    captured = await page.evaluate(() => (window as unknown as {__thunkPostId?: string}).__thunkPostId);
+    const captured = await page.evaluate(() => (window as unknown as {__thunkPostId?: string}).__thunkPostId);
     expect(captured).toBe('post1');
     await expect(page.getByText('Join channel?')).toHaveCount(0);
 });

@@ -5,14 +5,14 @@
 import React, {memo, useCallback, useEffect, useMemo} from 'react';
 import {FormattedMessage} from 'react-intl';
 
+import type {TableProps} from './types';
+
 import {Client} from '../../../client/Client';
 import type {TopReaction} from '../../../types';
 import {getEmojiImageUrl, preloadEmojis} from '../../../utils/emoji';
 import type {Column, Row} from '../../DataGrid/DataGrid';
 import {DataGrid} from '../../DataGrid/DataGrid';
 import {usePaginatedTable} from '../usePaginatedTable';
-
-import type {TableProps} from './types';
 
 const ReactionEmoji: React.FC<{name: string; size: number}> = ({name, size}) => {
     const url = getEmojiImageUrl(name);
@@ -55,17 +55,26 @@ const TopReactionsTableComponent: React.FC<TableProps> = ({scope, timeRange, tea
 
     const columns = useMemo<Column[]>(() => [
         {
-            name: <FormattedMessage id='insights.topReactions.rank' defaultMessage='Rank'/>,
+            name: <FormattedMessage
+                id='insights.topReactions.rank'
+                defaultMessage='Rank'
+                  />,
             field: 'rank',
             className: 'rankCell',
             width: 0.2,
         },
         {
-            name: <FormattedMessage id='insights.topReactions.reaction' defaultMessage='Reaction'/>,
+            name: <FormattedMessage
+                id='insights.topReactions.reaction'
+                defaultMessage='Reaction'
+                  />,
             field: 'reaction',
         },
         {
-            name: <FormattedMessage id='insights.topReactions.timesUsed' defaultMessage='Times used'/>,
+            name: <FormattedMessage
+                id='insights.topReactions.timesUsed'
+                defaultMessage='Times used'
+                  />,
             field: 'times_used',
         },
     ], []);
@@ -79,7 +88,7 @@ const TopReactionsTableComponent: React.FC<TableProps> = ({scope, timeRange, tea
             const barSize = reaction.count / top;
             return {
                 cells: {
-                    rank: <span className='cell-text'>{table.page * table.perPage + i + 1}</span>,
+                    rank: <span className='cell-text'>{(table.page * table.perPage) + i + 1}</span>,
                     reaction: (
                         <div className='reaction-cell'>
                             <ReactionEmoji
@@ -103,8 +112,8 @@ const TopReactionsTableComponent: React.FC<TableProps> = ({scope, timeRange, tea
         });
     }, [table.items, table.page, table.perPage]);
 
-    const startCount = table.page * table.perPage + 1;
-    const endCount = startCount + table.items.length - 1;
+    const startCount = (table.page * table.perPage) + 1;
+    const endCount = (startCount + table.items.length) - 1;
     const total = table.hasNext ? endCount + 1 : endCount;
 
     return (

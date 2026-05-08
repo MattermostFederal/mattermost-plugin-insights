@@ -83,6 +83,7 @@ test('clicking the locked Team Insights item opens the access modal and does NOT
         {hooksConfig: {state: stateWithLicense({IsLicensed: 'false'})}},
     );
     await component.locator('.insights-scope__title').click();
+
     // The locked item is aria-disabled (Playwright auto-waits for
     // enabled), but the deprecated UX intentionally leaves it clickable
     // so the access modal can open. Force the click.

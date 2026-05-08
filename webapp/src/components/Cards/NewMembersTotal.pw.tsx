@@ -41,9 +41,11 @@ test('clicking "See all" calls openInsightsModal and stops propagation', async (
     let opened = 0;
     let outerClicks = 0;
     const component = await mount(
-        <div onClick={() => {
+        <div
+            onClick={() => {
             outerClicks += 1;
-        }}>
+        }}
+        >
             <NewMembersTotal
                 total={42}
                 timeRange='7_day'

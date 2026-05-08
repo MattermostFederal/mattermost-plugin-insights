@@ -47,16 +47,16 @@ interface TeamRecord {
 // selectors/entities/cloud (`getCloudSubscription`,
 // `getSubscriptionProduct`).
 export interface MMLicense {
-    IsLicensed?: string;       // "true" | "false"
-    IsTrial?: string;          // "true" | "false"
-    Cloud?: string;            // "true" | "false"
-    Compliance?: string;       // "true" | "false"
+    IsLicensed?: string; // "true" | "false"
+    IsTrial?: string; // "true" | "false"
+    Cloud?: string; // "true" | "false"
+    Compliance?: string; // "true" | "false"
     SkuShortName?: string;
 }
 
 export interface MMConfig {
-    BuildEnterpriseReady?: string;       // "true" | "false"
-    EnableComplianceExport?: string;     // "true" | "false"
+    BuildEnterpriseReady?: string; // "true" | "false"
+    EnableComplianceExport?: string; // "true" | "false"
 }
 
 export interface CloudSubscription {

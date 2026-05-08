@@ -6,6 +6,8 @@ import React, {memo, useCallback, useMemo} from 'react';
 import {FormattedMessage} from 'react-intl';
 import {useSelector} from 'react-redux';
 
+import type {TableProps} from './types';
+
 import {Client} from '../../../client/Client';
 import {getCurrentTeamName} from '../../../redux/mmSelectors';
 import type {TopChannel} from '../../../types';
@@ -14,8 +16,6 @@ import {trackInsightsEvent} from '../../../utils/telemetry';
 import type {Column, Row} from '../../DataGrid/DataGrid';
 import {DataGrid} from '../../DataGrid/DataGrid';
 import {usePaginatedTable} from '../usePaginatedTable';
-
-import type {TableProps} from './types';
 
 const TopChannelsTableComponent: React.FC<TableProps> = ({scope, timeRange, teamId}) => {
     const teamName = useSelector(getCurrentTeamName);
@@ -34,17 +34,26 @@ const TopChannelsTableComponent: React.FC<TableProps> = ({scope, timeRange, team
 
     const columns = useMemo<Column[]>(() => [
         {
-            name: <FormattedMessage id='insights.topReactions.rank' defaultMessage='Rank'/>,
+            name: <FormattedMessage
+                id='insights.topReactions.rank'
+                defaultMessage='Rank'
+                  />,
             field: 'rank',
             className: 'rankCell',
             width: 0.2,
         },
         {
-            name: <FormattedMessage id='insights.topChannels.channel' defaultMessage='Channel'/>,
+            name: <FormattedMessage
+                id='insights.topChannels.channel'
+                defaultMessage='Channel'
+                  />,
             field: 'channel',
         },
         {
-            name: <FormattedMessage id='insights.topChannels.totalMessages' defaultMessage='Total messages'/>,
+            name: <FormattedMessage
+                id='insights.topChannels.totalMessages'
+                defaultMessage='Total messages'
+                  />,
             field: 'messages',
         },
     ], []);
@@ -59,7 +68,7 @@ const TopChannelsTableComponent: React.FC<TableProps> = ({scope, timeRange, team
             const icon = channel.type === 'P' ? 'lock-outline' : 'globe';
             return {
                 cells: {
-                    rank: <span className='cell-text'>{table.page * table.perPage + i + 1}</span>,
+                    rank: <span className='cell-text'>{(table.page * table.perPage) + i + 1}</span>,
                     channel: (
                         <div className='channel-cell'>
                             <i className={`icon icon-${icon}`}/>
@@ -84,8 +93,8 @@ const TopChannelsTableComponent: React.FC<TableProps> = ({scope, timeRange, team
         });
     }, [table.items, table.page, table.perPage, teamName]);
 
-    const startCount = table.page * table.perPage + 1;
-    const endCount = startCount + table.items.length - 1;
+    const startCount = (table.page * table.perPage) + 1;
+    const endCount = (startCount + table.items.length) - 1;
     const total = table.hasNext ? endCount + 1 : endCount;
 
     return (

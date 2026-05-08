@@ -9,12 +9,12 @@ test('hits the user route, renders rows, and paginates', async ({mount, page}) =
         const url = new URL(route.request().url());
         const reqPage = Number(url.searchParams.get('page') || '0');
         pageRequested = reqPage;
-        const items = reqPage === 0
-            ? [
+        const items = reqPage === 0 ?
+            [
                 {playbook_id: 'pb1', num_runs: 10, title: 'Incident response', last_run_at: 1_700_000_000_000},
                 {playbook_id: 'pb2', num_runs: 6, title: 'Onboarding', last_run_at: 1_700_000_000_000},
-            ]
-            : [{playbook_id: 'pb3', num_runs: 4, title: 'Release', last_run_at: 1_700_000_000_000}];
+            ] :
+            [{playbook_id: 'pb3', num_runs: 4, title: 'Release', last_run_at: 1_700_000_000_000}];
         route.fulfill({
             status: 200,
             contentType: 'application/json',

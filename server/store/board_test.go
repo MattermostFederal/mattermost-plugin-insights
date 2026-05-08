@@ -71,10 +71,20 @@ func seedTopBoardsFixture(t *testing.T, db *sql.DB) {
 	// board3: 3 by user1
 	type blockEdit struct{ boardID, modifiedBy string }
 	blocks := []blockEdit{
-		{tbBoard1, tbUser1}, {tbBoard1, tbUser1}, {tbBoard1, tbUser1}, {tbBoard1, tbUser1}, {tbBoard1, tbUser1},
-		{tbBoard1, tbUser2}, {tbBoard1, tbUser2},
-		{tbBoard2, tbUser1}, {tbBoard2, tbUser1}, {tbBoard2, tbUser1}, {tbBoard2, tbUser1},
-		{tbBoard3, tbUser1}, {tbBoard3, tbUser1}, {tbBoard3, tbUser1},
+		{tbBoard1, tbUser1},
+		{tbBoard1, tbUser1},
+		{tbBoard1, tbUser1},
+		{tbBoard1, tbUser1},
+		{tbBoard1, tbUser1},
+		{tbBoard1, tbUser2},
+		{tbBoard1, tbUser2},
+		{tbBoard2, tbUser1},
+		{tbBoard2, tbUser1},
+		{tbBoard2, tbUser1},
+		{tbBoard2, tbUser1},
+		{tbBoard3, tbUser1},
+		{tbBoard3, tbUser1},
+		{tbBoard3, tbUser1},
 	}
 	for i, b := range blocks {
 		mustExec(t, db,

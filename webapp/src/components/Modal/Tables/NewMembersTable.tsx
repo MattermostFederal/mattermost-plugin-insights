@@ -6,16 +6,16 @@ import React, {memo, useCallback, useMemo, useState} from 'react';
 import {FormattedMessage} from 'react-intl';
 import {useSelector} from 'react-redux';
 
+import type {TableProps} from './types';
+
 import {Client} from '../../../client/Client';
 import {getCurrentTeamName} from '../../../redux/mmSelectors';
+import type {NewTeamMember, NewTeamMembersResponse} from '../../../types';
 import {navigateTo} from '../../../utils/navigation';
 import {trackInsightsEvent} from '../../../utils/telemetry';
-import type {NewTeamMember, NewTeamMembersResponse} from '../../../types';
 import type {Column, Row} from '../../DataGrid/DataGrid';
 import {DataGrid} from '../../DataGrid/DataGrid';
 import {usePaginatedTable} from '../usePaginatedTable';
-
-import type {TableProps} from './types';
 
 function displayName(m: NewTeamMember): string {
     const fl = `${m.first_name} ${m.last_name}`.trim();
@@ -55,15 +55,24 @@ const NewMembersTableComponent: React.FC<TableProps> = ({timeRange, teamId}) => 
 
     const columns = useMemo<Column[]>(() => [
         {
-            name: <FormattedMessage id='insights.newMembers.member' defaultMessage='Team member'/>,
+            name: <FormattedMessage
+                id='insights.newMembers.member'
+                defaultMessage='Team member'
+                  />,
             field: 'name',
         },
         {
-            name: <FormattedMessage id='insights.newMembers.position' defaultMessage='Position'/>,
+            name: <FormattedMessage
+                id='insights.newMembers.position'
+                defaultMessage='Position'
+                  />,
             field: 'position',
         },
         {
-            name: <FormattedMessage id='insights.newMembers.joined' defaultMessage='Date joined'/>,
+            name: <FormattedMessage
+                id='insights.newMembers.joined'
+                defaultMessage='Date joined'
+                  />,
             field: 'joined',
         },
     ], []);
@@ -80,8 +89,9 @@ const NewMembersTableComponent: React.FC<TableProps> = ({timeRange, teamId}) => 
         } : undefined,
     })), [table.items, teamName]);
 
-    const startCount = table.page * table.perPage + 1;
-    const endCount = startCount + table.items.length - 1;
+    const startCount = (table.page * table.perPage) + 1;
+    const endCount = (startCount + table.items.length) - 1;
+
     // Prefer the server-supplied `total_count` over the inferred has-next
     // boundary; the New Team Members route returns it.
     const total = totalCount || (table.hasNext ? endCount + 1 : endCount);

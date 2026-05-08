@@ -14,6 +14,8 @@
 import React, {memo, useCallback, useMemo} from 'react';
 import {FormattedMessage} from 'react-intl';
 
+import type {TableProps} from './types';
+
 import {Client} from '../../../client/Client';
 import type {TopPlaybook} from '../../../types';
 import {navigateTo} from '../../../utils/navigation';
@@ -21,8 +23,6 @@ import {trackInsightsEvent} from '../../../utils/telemetry';
 import type {Column, Row} from '../../DataGrid/DataGrid';
 import {DataGrid} from '../../DataGrid/DataGrid';
 import {usePaginatedTable} from '../usePaginatedTable';
-
-import type {TableProps} from './types';
 
 function relativeTime(unixMillis: number): string {
     if (!unixMillis) {
@@ -58,23 +58,35 @@ const TopPlaybooksTableComponent: React.FC<TableProps> = ({scope, timeRange, tea
 
     const columns = useMemo<Column[]>(() => [
         {
-            name: <FormattedMessage id='insights.topReactions.rank' defaultMessage='Rank'/>,
+            name: <FormattedMessage
+                id='insights.topReactions.rank'
+                defaultMessage='Rank'
+                  />,
             field: 'rank',
             className: 'rankCell',
             width: 0.07,
         },
         {
-            name: <FormattedMessage id='insights.topPlaybooksTable.playbook' defaultMessage='Playbook'/>,
+            name: <FormattedMessage
+                id='insights.topPlaybooksTable.playbook'
+                defaultMessage='Playbook'
+                  />,
             field: 'playbook',
             width: 0.4,
         },
         {
-            name: <FormattedMessage id='insights.topPlaybooksTable.updates' defaultMessage='Last run'/>,
+            name: <FormattedMessage
+                id='insights.topPlaybooksTable.updates'
+                defaultMessage='Last run'
+                  />,
             field: 'lastRun',
             width: 0.23,
         },
         {
-            name: <FormattedMessage id='insights.topPlaybooksTable.participants' defaultMessage='Total runs'/>,
+            name: <FormattedMessage
+                id='insights.topPlaybooksTable.participants'
+                defaultMessage='Total runs'
+                  />,
             field: 'totalRuns',
             width: 0.3,
         },
@@ -89,7 +101,7 @@ const TopPlaybooksTableComponent: React.FC<TableProps> = ({scope, timeRange, tea
             const barSize = playbook.num_runs / top;
             return {
                 cells: {
-                    rank: <span className='cell-text'>{table.page * table.perPage + i + 1}</span>,
+                    rank: <span className='cell-text'>{(table.page * table.perPage) + i + 1}</span>,
                     playbook: (
                         <div className='channel-display-name'>
                             <span className='cell-text'>{playbook.title}</span>
@@ -114,8 +126,8 @@ const TopPlaybooksTableComponent: React.FC<TableProps> = ({scope, timeRange, tea
         });
     }, [table.items, table.page, table.perPage]);
 
-    const startCount = table.page * table.perPage + 1;
-    const endCount = startCount + table.items.length - 1;
+    const startCount = (table.page * table.perPage) + 1;
+    const endCount = (startCount + table.items.length) - 1;
     const total = table.hasNext ? endCount + 1 : endCount;
 
     return (

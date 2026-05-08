@@ -39,7 +39,7 @@ function displayName(member: NewTeamMember): string {
 const WaveEmoji: React.FC = () => {
     const url = getEmojiImageUrl('wave');
     if (!url) {
-        return <span aria-hidden='true'>👋</span>;
+        return <span aria-hidden='true'>{'👋'}</span>;
     }
     return (
         <img

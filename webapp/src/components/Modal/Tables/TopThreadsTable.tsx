@@ -6,15 +6,15 @@ import React, {memo, useCallback, useMemo} from 'react';
 import {FormattedMessage} from 'react-intl';
 import {useDispatch} from 'react-redux';
 
+import type {TableProps} from './types';
+
 import {Client} from '../../../client/Client';
+import type {TopThread} from '../../../types';
 import {openThreadRHS} from '../../../utils/navigation';
 import {trackInsightsEvent} from '../../../utils/telemetry';
-import type {TopThread} from '../../../types';
 import type {Column, Row} from '../../DataGrid/DataGrid';
 import {DataGrid} from '../../DataGrid/DataGrid';
 import {usePaginatedTable} from '../usePaginatedTable';
-
-import type {TableProps} from './types';
 
 function authorName(t: TopThread): string {
     const u = t.user_information;
@@ -39,19 +39,31 @@ const TopThreadsTableComponent: React.FC<TableProps> = ({scope, timeRange, teamI
 
     const columns = useMemo<Column[]>(() => [
         {
-            name: <FormattedMessage id='insights.topThreads.thread' defaultMessage='Thread'/>,
+            name: <FormattedMessage
+                id='insights.topThreads.thread'
+                defaultMessage='Thread'
+                  />,
             field: 'author',
         },
         {
-            name: <FormattedMessage id='insights.topChannels.channel' defaultMessage='Channel'/>,
+            name: <FormattedMessage
+                id='insights.topChannels.channel'
+                defaultMessage='Channel'
+                  />,
             field: 'channel',
         },
         {
-            name: <FormattedMessage id='insights.topThreads.replies' defaultMessage='Replies'/>,
+            name: <FormattedMessage
+                id='insights.topThreads.replies'
+                defaultMessage='Replies'
+                  />,
             field: 'replies',
         },
         {
-            name: <FormattedMessage id='insights.topThreads.totalMessages' defaultMessage='Participants'/>,
+            name: <FormattedMessage
+                id='insights.topThreads.totalMessages'
+                defaultMessage='Participants'
+                  />,
             field: 'participants',
         },
     ], []);
@@ -79,8 +91,8 @@ const TopThreadsTableComponent: React.FC<TableProps> = ({scope, timeRange, teamI
         };
     }), [table.items, dispatch]);
 
-    const startCount = table.page * table.perPage + 1;
-    const endCount = startCount + table.items.length - 1;
+    const startCount = (table.page * table.perPage) + 1;
+    const endCount = (startCount + table.items.length) - 1;
     const total = table.hasNext ? endCount + 1 : endCount;
 
     return (

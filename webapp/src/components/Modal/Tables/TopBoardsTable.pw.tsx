@@ -9,12 +9,12 @@ test('hits the user route, renders rows, and paginates', async ({mount, page}) =
         const url = new URL(route.request().url());
         const reqPage = Number(url.searchParams.get('page') || '0');
         pageRequested = reqPage;
-        const items = reqPage === 0
-            ? [
+        const items = reqPage === 0 ?
+            [
                 {boardID: 'b1', icon: '💬', title: 'Project planning', activityCount: '12', activeUsers: ['u1'], createdBy: 'u1'},
                 {boardID: 'b2', icon: '📋', title: 'Roadmap', activityCount: '6', activeUsers: ['u1'], createdBy: 'u1'},
-            ]
-            : [{boardID: 'b3', icon: '🎯', title: 'Goals', activityCount: '4', activeUsers: ['u1'], createdBy: 'u1'}];
+            ] :
+            [{boardID: 'b3', icon: '🎯', title: 'Goals', activityCount: '4', activeUsers: ['u1'], createdBy: 'u1'}];
         route.fulfill({
             status: 200,
             contentType: 'application/json',

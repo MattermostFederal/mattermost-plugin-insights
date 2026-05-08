@@ -24,7 +24,7 @@ export interface PaginatedTableState<T> extends PageState<T> {
 
 export function usePaginatedTable<T, Resp extends {has_next: boolean; items: T[]}>(
     fetcher: (page: number, perPage: number) => Promise<Resp>,
-    deps: ReadonlyArray<unknown>,
+    deps: readonly unknown[],
     onResponse?: (resp: Resp) => void,
 ): PaginatedTableState<T> {
     const [state, setState] = useState<PageState<T>>({items: [], page: 0, hasNext: false, loading: true});

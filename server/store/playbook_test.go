@@ -54,9 +54,16 @@ func seedTopPlaybooksFixture(t *testing.T, db *sql.DB) {
 	// Plus one stale pb1 run before `withinWindow` that must be filtered.
 	type run struct{ pb string }
 	runs := []run{
-		{tpPb1}, {tpPb1}, {tpPb1}, {tpPb1}, {tpPb1},
-		{tpPb2}, {tpPb2},
-		{tpPb3}, {tpPb3}, {tpPb3},
+		{tpPb1},
+		{tpPb1},
+		{tpPb1},
+		{tpPb1},
+		{tpPb1},
+		{tpPb2},
+		{tpPb2},
+		{tpPb3},
+		{tpPb3},
+		{tpPb3},
 	}
 	for i, r := range runs {
 		mustExec(t, db, `INSERT INTO IR_Incident (ID, PlaybookID, TeamID, CreateAt) VALUES ($1, $2, $3, $4)`,

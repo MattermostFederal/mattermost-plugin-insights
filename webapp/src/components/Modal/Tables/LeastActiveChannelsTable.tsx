@@ -6,6 +6,8 @@ import React, {memo, useCallback, useMemo} from 'react';
 import {FormattedMessage} from 'react-intl';
 import {useSelector} from 'react-redux';
 
+import type {TableProps} from './types';
+
 import {Client} from '../../../client/Client';
 import {getCurrentTeamName} from '../../../redux/mmSelectors';
 import type {TopInactiveChannel} from '../../../types';
@@ -14,8 +16,6 @@ import {trackInsightsEvent} from '../../../utils/telemetry';
 import type {Column, Row} from '../../DataGrid/DataGrid';
 import {DataGrid} from '../../DataGrid/DataGrid';
 import {usePaginatedTable} from '../usePaginatedTable';
-
-import type {TableProps} from './types';
 
 function formatLastActivity(unixMillis: number): string {
     if (unixMillis <= 0) {
@@ -41,15 +41,24 @@ const LeastActiveChannelsTableComponent: React.FC<TableProps> = ({scope, timeRan
 
     const columns = useMemo<Column[]>(() => [
         {
-            name: <FormattedMessage id='insights.leastActiveChannels.channel' defaultMessage='Channel'/>,
+            name: <FormattedMessage
+                id='insights.leastActiveChannels.channel'
+                defaultMessage='Channel'
+                  />,
             field: 'channel',
         },
         {
-            name: <FormattedMessage id='insights.leastActiveChannels.members' defaultMessage='Members'/>,
+            name: <FormattedMessage
+                id='insights.leastActiveChannels.members'
+                defaultMessage='Members'
+                  />,
             field: 'members',
         },
         {
-            name: <FormattedMessage id='insights.leastActiveChannels.lastActivityCell' defaultMessage='Last activity'/>,
+            name: <FormattedMessage
+                id='insights.leastActiveChannels.lastActivityCell'
+                defaultMessage='Last activity'
+                  />,
             field: 'last_activity',
         },
     ], []);
@@ -74,8 +83,8 @@ const LeastActiveChannelsTableComponent: React.FC<TableProps> = ({scope, timeRan
         };
     }), [table.items, teamName]);
 
-    const startCount = table.page * table.perPage + 1;
-    const endCount = startCount + table.items.length - 1;
+    const startCount = (table.page * table.perPage) + 1;
+    const endCount = (startCount + table.items.length) - 1;
     const total = table.hasNext ? endCount + 1 : endCount;
 
     return (
