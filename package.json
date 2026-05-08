@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "@mattermost/compass-icons": "^0.1.53",
+    "react-select": "^5.10.2"
+  },
+  "devDependencies": {
+    "react-bootstrap": "^2.10.10"
+  }
+}

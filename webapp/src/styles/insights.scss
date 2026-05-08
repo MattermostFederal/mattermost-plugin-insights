@@ -1,0 +1,1505 @@
+body.insights-product-active {
+    background-color: var(--sidebar-bg);
+}
+
+.insights-page {
+    display: flex;
+    overflow-y: auto;
+    flex-direction: column;
+    height: 100%;
+    padding: 24px;
+
+    // Opaque base + alpha tint. The alpha alone (as the deprecated
+    // stylesheet used) leaks the parent product-chrome color through
+    // — the registerProduct mount point isn't always inside a white
+    // center-channel container. Layering an opaque base behind the
+    // 4% tint gives the same visual effect on any chrome.
+    background-color: var(--center-channel-bg);
+    background-image: linear-gradient(
+        rgba(var(--center-channel-color-rgb), 0.04),
+        rgba(var(--center-channel-color-rgb), 0.04)
+    );
+
+    color: var(--center-channel-color);
+}
+
+// Page-internal header strip (port of the deprecated `Insights___header`
+// layout). Lives at the top of the insights page body, holding the scope
+// title-dropdown on the left and the time-range select on the right.
+.insights-page__controls {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 0 0 16px;
+    border-bottom: 1px solid rgba(var(--center-channel-color-rgb), 0.16);
+    margin-bottom: 24px;
+}
+
+.insights-page__grid {
+    display: grid;
+    align-content: start;
+    gap: 16px;
+    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+}
+
+// ----- Scope title-dropdown (ported from the deprecated
+// `.insights-title` button + Menu) ---------------------------------------
+
+.insights-scope {
+    position: relative;
+    display: inline-flex;
+}
+
+.insights-scope__title {
+    display: flex;
+    align-items: center;
+    padding: 6px 8px;
+    border: none;
+    background-color: transparent;
+    border-radius: 4px;
+    color: var(--center-channel-color);
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 24px;
+}
+
+.insights-scope__title:hover {
+    background-color: rgba(var(--center-channel-color-rgb), 0.08);
+}
+
+.insights-scope--open .insights-scope__title {
+    background-color: rgba(var(--button-bg-rgb), 0.08);
+}
+
+.insights-scope__title .icon {
+    display: inline-flex;
+    width: 16px;
+    height: 16px;
+    margin-left: 4px;
+}
+
+.insights-scope__menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 1000;
+    min-width: 200px;
+    margin-top: 4px;
+    padding: 8px 0;
+    background-color: var(--center-channel-bg);
+    border: 1px solid rgba(var(--center-channel-color-rgb), 0.08);
+    border-radius: 4px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.insights-scope__menu-item {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 8px 16px;
+    border: none;
+    background-color: transparent;
+    color: var(--center-channel-color);
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 20px;
+    text-align: left;
+}
+
+.insights-scope__menu-item:hover {
+    background-color: rgba(var(--center-channel-color-rgb), 0.08);
+}
+
+.insights-scope__menu-item.is-selected {
+    color: var(--button-bg);
+    font-weight: 600;
+}
+
+.insights-scope__menu-item.is-restricted {
+    color: rgba(var(--center-channel-color-rgb), 0.56);
+}
+
+.insights-scope__menu-item.is-restricted .insights-scope__restricted-icon {
+    display: inline-flex;
+    margin-left: auto;
+    color: rgba(var(--center-channel-color-rgb), 0.4);
+}
+
+// ----- Tag pill (slim port of host's components/widgets/tag/tag.tsx) ---
+
+.Tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0 6px;
+    background-color: rgba(var(--center-channel-color-rgb), 0.08);
+    border-radius: 4px;
+    color: rgba(var(--center-channel-color-rgb), 0.75);
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 16px;
+}
+
+.Tag--clickable {
+    cursor: pointer;
+}
+
+.Tag--clickable:hover {
+    background-color: rgba(var(--center-channel-color-rgb), 0.16);
+}
+
+// ----- Avatars (stack of avatars + +N overflow) ------------------------
+
+.Avatars {
+    display: inline-flex;
+    align-items: center;
+    gap: 0;
+}
+
+.Avatars .Avatar {
+    margin-left: -4px;
+    border: 2px solid var(--center-channel-bg);
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.Avatars .Avatar:first-child {
+    margin-left: 0;
+}
+
+.Avatars___xs .Avatar {
+    width: 20px;
+    height: 20px;
+}
+
+.Avatars___sm .Avatar {
+    width: 24px;
+    height: 24px;
+}
+
+.Avatars___md .Avatar {
+    width: 32px;
+    height: 32px;
+}
+
+.Avatars__overflow {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 4px;
+    padding: 0 6px;
+    height: 20px;
+    background-color: rgba(var(--center-channel-color-rgb), 0.16);
+    border-radius: 10px;
+    color: var(--center-channel-color);
+    font-size: 10px;
+    font-weight: 600;
+}
+
+// ----- Channel actions menu (kebab on Top Inactive Channels rows) ------
+
+.channel-action {
+    position: relative;
+    display: inline-flex;
+    margin-left: 8px;
+}
+
+.channel-action__toggle {
+    display: inline-flex;
+    width: 28px;
+    height: 28px;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: none;
+    background: transparent;
+    border-radius: 4px;
+    color: rgba(var(--center-channel-color-rgb), 0.56);
+    cursor: pointer;
+}
+
+.channel-action__toggle:hover,
+.channel-action--open .channel-action__toggle {
+    background-color: rgba(var(--center-channel-color-rgb), 0.08);
+    color: var(--center-channel-color);
+}
+
+.channel-action__menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    z-index: 1000;
+    min-width: 180px;
+    margin-top: 4px;
+    padding: 8px 0;
+    background-color: var(--center-channel-bg);
+    border: 1px solid rgba(var(--center-channel-color-rgb), 0.08);
+    border-radius: 4px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.channel-action__menu-item {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 8px 16px;
+    border: none;
+    background-color: transparent;
+    color: var(--center-channel-color);
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 20px;
+    text-align: left;
+}
+
+.channel-action__menu-item:hover {
+    background-color: rgba(var(--center-channel-color-rgb), 0.08);
+}
+
+.channel-action__menu-item--danger {
+    color: var(--error-text, #d24b4e);
+}
+
+.channel-action__menu-item .icon {
+    display: inline-flex;
+    width: 16px;
+    height: 16px;
+    margin-right: 8px;
+    color: rgba(var(--center-channel-color-rgb), 0.56);
+}
+
+.insights-scope__menu-item .icon {
+    display: inline-flex;
+    width: 16px;
+    height: 16px;
+    margin-right: 8px;
+    color: rgba(var(--center-channel-color-rgb), 0.56);
+}
+
+// react-select styling — overrides the small bits left up to CSS, since the
+// inline `reactStyles` only carries a few rules. Uses the `classNamePrefix`
+// "insights-time-range" we pass to ReactSelect.
+
+.insights-time-range__control {
+    min-height: 32px !important;
+    border: 1px solid rgba(var(--center-channel-color-rgb), 0.16) !important;
+    background-color: var(--center-channel-bg) !important;
+    border-radius: 4px !important;
+    color: var(--center-channel-color) !important;
+}
+
+.insights-time-range__control--is-focused {
+    box-shadow: 0 0 0 2px var(--button-bg) !important;
+}
+
+.insights-time-range__single-value {
+    color: var(--center-channel-color) !important;
+}
+
+.insights-time-range__menu {
+    z-index: 1100;
+    background-color: var(--center-channel-bg) !important;
+    color: var(--center-channel-color) !important;
+}
+
+.insights-time-range__option--is-focused {
+    background-color: rgba(var(--center-channel-color-rgb), 0.08) !important;
+}
+
+.insights-time-range__option--is-selected {
+    background-color: var(--button-bg) !important;
+    color: var(--button-color) !important;
+}
+
+.insights-time-range__indicator .icon {
+    display: inline-flex;
+    align-items: center;
+    color: rgba(var(--center-channel-color-rgb), 0.56);
+}
+
+// ----- Card shell (ported from the deprecated `.Card.insights-card`) ----
+
+.insights-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid rgba(var(--center-channel-color-rgb), 0.08);
+    background-color: var(--center-channel-bg);
+    border-radius: 8px;
+    box-shadow: none;
+    transition: box-shadow 120ms ease, border-color 120ms ease;
+}
+
+.insights-card:hover {
+    border-color: rgba(var(--center-channel-color-rgb), 0.16);
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.12);
+}
+
+.insights-card__header {
+    position: relative;
+    display: flex;
+    align-items: center;
+    padding: 24px;
+    padding-bottom: 16px;
+}
+
+.insights-card--clickable .insights-card__header {
+    cursor: pointer;
+}
+
+.insights-card--clickable .insights-card__header:focus-visible {
+    outline: 2px solid var(--button-bg);
+    outline-offset: -2px;
+    border-radius: 8px 8px 0 0;
+}
+
+.insights-card__title-block {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+}
+
+.insights-card__title {
+    margin: 0;
+    color: var(--center-channel-color);
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 24px;
+}
+
+.insights-card__subtitle {
+    color: rgba(var(--center-channel-color-rgb), 0.72);
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 16px;
+}
+
+.insights-card__expand {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: none;
+    background: none;
+    border-radius: 4px;
+    color: rgba(var(--center-channel-color-rgb), 0.56);
+    cursor: pointer;
+}
+
+.insights-card__expand:hover {
+    background-color: rgba(var(--center-channel-color-rgb), 0.08);
+    color: rgba(var(--center-channel-color-rgb), 0.72);
+}
+
+.insights-card__expand .icon-chevron-right {
+    width: 16px;
+    height: 16px;
+    font-size: 16px;
+}
+
+.insights-card__body {
+    padding: 0 24px 24px;
+    font-size: 14px;
+    overflow: visible;
+}
+
+.insights-card__placeholder {
+    margin: 8px 0;
+    color: rgba(var(--center-channel-color-rgb), 0.56);
+    font-size: 12px;
+    font-style: italic;
+    line-height: 16px;
+}
+
+.insights-card__error {
+    margin: 8px 0;
+    color: var(--error-text, #d24b4e);
+    font-size: 12px;
+    line-height: 16px;
+}
+
+// ----- Insights detail modal (ported from the deprecated
+// insights_modal.scss header / body / table-cell rules) -----------------
+
+.modal-dialog.insights-modal {
+    width: 800px;
+    max-width: 95vw;
+
+    // Per-table tweaks (ported from deprecated insights_modal.scss):
+    //   - TopPlaybooksTable / TopBoardsTable / TopThreadsTable rows are
+    //     click-through navigation, so the row gets `cursor: pointer`.
+    //   - TopDMsTable's Sent/Received columns right-align (cells 3,4).
+    //   - LeastActiveChannelsTable's last-activity column right-aligns
+    //     (cell 4).
+
+    .InsightsTable {
+        padding: 0;
+        background: var(--center-channel-bg);
+
+        &.TopPlaybooksTable .DataGrid_row,
+        &.TopBoardsTable .DataGrid_row,
+        &.TopThreadsTable .DataGrid_row,
+        &.TopChannelsTable .DataGrid_row,
+        &.TopDMsTable .DataGrid_row,
+        &.LeastActiveChannelsTable .DataGrid_row,
+        &.NewMembersTable .DataGrid_row {
+            cursor: pointer;
+        }
+
+        &.TopDMsTable .DataGrid_header .DataGrid_cell:nth-of-type(3),
+        &.TopDMsTable .DataGrid_header .DataGrid_cell:nth-of-type(4) {
+            text-align: right;
+        }
+
+        &.LeastActiveChannelsTable .DataGrid_header .DataGrid_cell:nth-of-type(4) {
+            text-align: right;
+        }
+
+        .DataGrid_header {
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(var(--center-channel-color-rgb), 0.16);
+            background-color: rgba(var(--center-channel-color-rgb), 0.04);
+            border-radius: 4px 4px 0 0;
+            color: var(--center-channel-color);
+            font-size: 14px;
+            font-weight: 600;
+            line-height: 20px;
+        }
+    }
+
+    .modal-content {
+        background-color: var(--center-channel-bg);
+        color: var(--center-channel-color);
+    }
+
+    .modal-header {
+        align-items: flex-start;
+        padding: 22px 32px 26px;
+
+        .title-section {
+            display: flex;
+            flex: 1;
+            flex-direction: column;
+
+            h1 {
+                margin: 0;
+                font-size: 22px;
+                font-weight: 600;
+                line-height: 28px;
+            }
+
+            .subtitle {
+                margin-top: 6px;
+                margin-bottom: 0;
+                color: rgba(var(--center-channel-color-rgb), 0.72);
+                font-size: 12px;
+                font-weight: 400;
+                line-height: 16px;
+            }
+        }
+
+        .insights-time-range {
+            margin-right: 24px;
+        }
+    }
+
+    .modal-body {
+        padding: 4px 32px 28px;
+
+        .reaction-cell {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+
+            .cell-text {
+                color: var(--center-channel-color);
+            }
+        }
+
+        .channel-cell {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .times-used-container {
+            display: flex;
+            width: 100%;
+            align-items: center;
+
+            .cell-text {
+                flex: 0.1 0;
+                text-align: right;
+            }
+
+            .horizontal-bar {
+                height: 8px;
+                margin-left: 16px;
+                background: var(--button-bg);
+                border-radius: 6px;
+            }
+        }
+    }
+}
+
+// ----- DataGrid (ported from
+// webapp/channels/src/components/admin_console/data_grid/data_grid.scss in
+// commit 26617fcbdc, with Sass-Color-mod removed and CSS-vars resolved). --
+
+.DataGrid {
+    width: 100%;
+    padding: 0;
+    background: var(--center-channel-bg);
+    color: var(--center-channel-color);
+}
+
+.DataGrid_header {
+    display: flex;
+    flex-direction: row;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(var(--center-channel-color-rgb), 0.16);
+    color: var(--center-channel-color);
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 16px;
+
+    .DataGrid_cell {
+        padding: 0 16px;
+    }
+}
+
+.DataGrid_rows {
+    display: flex;
+    flex-direction: column;
+
+    .DataGrid_loading,
+    .DataGrid_empty {
+        width: 100%;
+        padding: 20px 0;
+        color: rgba(var(--center-channel-color-rgb), 0.56);
+        font-size: 14px;
+        text-align: center;
+    }
+}
+
+.DataGrid_row,
+.DataGrid_header {
+    display: flex;
+    height: auto;
+    flex-direction: row;
+    padding-left: 18px;
+
+    .DataGrid_cell {
+        flex: 1 0;
+    }
+}
+
+.DataGrid_row {
+    min-height: 40px;
+    border-left: none;
+
+    &:nth-child(odd) {
+        background: var(--center-channel-bg);
+    }
+
+    &:nth-child(even) {
+        background: rgba(var(--button-bg-rgb), 0.04);
+    }
+
+    &:hover {
+        background-color: rgba(var(--button-bg-rgb), 0.08);
+        color: var(--center-channel-color);
+        cursor: pointer;
+    }
+
+    .DataGrid_cell {
+        padding: 10px 16px;
+        margin: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+}
+
+.DataGrid_footer {
+    display: flex;
+    flex-direction: row;
+    padding: 8px;
+    border-top: 1px solid rgba(var(--center-channel-color-rgb), 0.08);
+    color: rgba(var(--center-channel-color-rgb), 0.56);
+    font-size: 13px;
+    text-align: right;
+
+    .DataGrid_cell {
+        width: 100%;
+        text-align: right;
+    }
+
+    .btn {
+        margin-left: 8px;
+
+        &.disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+    }
+}
+
+// ----- Top boards list (ported from the deprecated
+// activity_and_insights.scss `.top-board-container` block) --------------
+
+.top-board-container {
+    margin-bottom: -3px;
+
+    .board-list {
+        .board-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 12px;
+            color: inherit;
+            text-decoration: none;
+
+            &:hover {
+                background: rgba(var(--center-channel-color-rgb), 0.08);
+                border-radius: 4px;
+                cursor: pointer;
+                text-decoration: none;
+            }
+
+            span.board-icon {
+                display: flex;
+                width: 32px;
+                height: 32px;
+                align-items: center;
+                justify-content: center;
+                float: left;
+                font-size: 32px;
+            }
+
+            .display-info {
+                display: flex;
+                overflow: hidden;
+                flex-direction: column;
+                margin-left: 12px;
+
+                .display-name {
+                    overflow: hidden;
+                    margin-right: 10px;
+                    color: var(--center-channel-color);
+                    float: left;
+                    font-size: 12px;
+                    font-weight: 600;
+                    line-height: 16px;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
+                }
+
+                .update-counts {
+                    color: rgba(var(--center-channel-color-rgb), 0.56);
+                    font-size: 12px;
+                    font-weight: 400;
+                    line-height: 16px;
+                }
+            }
+
+            .Avatars.Avatars___xs {
+                display: inline-flex;
+                gap: 4px;
+                margin-left: auto;
+                float: right;
+
+                .Avatar___xs {
+                    width: 20px;
+                    height: 20px;
+                    border-radius: 50%;
+                    object-fit: cover;
+                }
+
+                .Avatars__overflow {
+                    display: inline-flex;
+                    width: 20px;
+                    height: 20px;
+                    align-items: center;
+                    justify-content: center;
+                    background-color: rgba(var(--center-channel-color-rgb), 0.16);
+                    border-radius: 50%;
+                    color: var(--center-channel-color);
+                    font-size: 10px;
+                    font-weight: 600;
+                }
+            }
+        }
+    }
+}
+
+.top-board-skeleton {
+    .top-board-loading-container {
+        display: flex;
+        align-items: center;
+        padding: 0 12px;
+        margin-bottom: 20px;
+
+        &:nth-of-type(4) {
+            margin-bottom: 4px;
+        }
+
+        .loading-lines {
+            display: flex;
+            flex: 1;
+            flex-direction: column;
+            margin-left: 10px;
+        }
+    }
+}
+
+// ----- Top playbooks list (ported from the deprecated
+// activity_and_insights.scss `.top-playbooks-container` block) ----------
+
+.top-playbooks-container {
+    .playbooks-list {
+        .playbook-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 12px;
+            color: inherit;
+            text-decoration: none;
+
+            &:hover {
+                background: rgba(var(--center-channel-color-rgb), 0.08);
+                border-radius: 4px;
+                cursor: pointer;
+                text-decoration: none;
+            }
+
+            &:focus {
+                text-decoration: none;
+            }
+
+            &:nth-of-type(2) .horizontal-bar {
+                opacity: 0.7;
+            }
+
+            &:nth-of-type(3) .horizontal-bar {
+                opacity: 0.5;
+            }
+
+            .display-info {
+                display: flex;
+                overflow: hidden;
+                flex: 0.6 0;
+                flex-direction: column;
+
+                &.run-info {
+                    flex: 0.4 0;
+                }
+
+                .display-name {
+                    overflow: hidden;
+                    margin-right: 10px;
+                    color: var(--center-channel-color);
+                    float: left;
+                    font-size: 12px;
+                    font-weight: 600;
+                    line-height: 16px;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
+                }
+
+                .last-run-time {
+                    color: rgba(var(--center-channel-color-rgb), 0.56);
+                    font-size: 12px;
+                    font-weight: 400;
+                    line-height: 16px;
+                }
+            }
+
+            .horizontal-bar {
+                height: 8px;
+                margin-top: 4px;
+                margin-bottom: 4px;
+                background-color: var(--button-bg);
+                border-radius: 6px;
+            }
+        }
+    }
+}
+
+.top-playbooks-skeleton {
+    .top-playbooks-loading-container {
+        padding: 0 12px;
+
+        &:nth-of-type(1) {
+            margin-top: 12px;
+        }
+
+        &:nth-of-type(2) {
+            margin-top: 24px;
+            margin-bottom: 24px;
+        }
+
+        &:nth-of-type(3) {
+            margin-bottom: 12px;
+        }
+    }
+}
+
+// ----- Top reactions bar chart (ported from the deprecated
+// activity_and_insights.scss `.top-reaction-container` block) -----------
+
+.top-reaction-container {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    height: 200px;
+    margin: 0 18px;
+
+    .bar-chart-entry {
+        display: flex;
+        flex: 0.2;
+        flex-direction: column;
+        align-items: center;
+        margin-top: auto;
+
+        &:nth-of-type(1) .bar-chart-data {
+            background-color: var(--button-bg);
+        }
+
+        &:nth-of-type(2) .bar-chart-data {
+            background-color: var(--online-indicator);
+        }
+
+        &:nth-of-type(3) .bar-chart-data {
+            background-color: var(--dnd-indicator);
+        }
+
+        &:nth-of-type(4) .bar-chart-data {
+            background-color: var(--new-message-separator);
+        }
+
+        &:nth-of-type(5) .bar-chart-data {
+            background-color: var(--away-indicator);
+        }
+
+        .reaction-count {
+            margin-bottom: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            line-height: 16px;
+        }
+
+        .bar-chart-data {
+            width: 8px;
+            margin-bottom: 6px;
+            border-radius: 6px;
+        }
+
+        .top-reactions__bar-emoji-fallback {
+            font-size: 11px;
+            color: rgba(var(--center-channel-color-rgb), 0.72);
+        }
+    }
+}
+
+// ----- Per-card skeleton layouts (ported from the deprecated
+// activity_and_insights.scss loading-container blocks) -------------------
+
+.top-reaction-skeleton {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    height: 200px;
+    margin: 0 18px;
+
+    .bar-chart-entry {
+        display: flex;
+        flex: 0.2;
+        flex-direction: column;
+        align-items: center;
+        margin-top: auto;
+    }
+}
+
+.top-channel-skeleton {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+
+    .top-channel-line-chart-skeleton {
+        height: 200px;
+    }
+
+    .top-channel-loading-row {
+        display: flex;
+        align-items: center;
+        padding: 12px 12px 12px 0;
+    }
+}
+
+.top-thread-skeleton {
+    .top-thread-loading-container {
+        padding: 0 12px;
+
+        &:nth-of-type(2),
+        &:nth-of-type(3) {
+            margin-top: 20px;
+        }
+
+        .top-thread-loading-row {
+            display: flex;
+            align-items: center;
+            padding-bottom: 8px;
+        }
+    }
+}
+
+.least-active-channels-skeleton {
+    .least-active-channels-loading-container {
+        display: flex;
+        width: 100%;
+        align-items: center;
+        padding: 0 12px;
+        margin-top: 24px;
+
+        &:nth-of-type(1) {
+            margin-top: 10px;
+        }
+
+        &:nth-of-type(4) {
+            margin-bottom: 10px;
+        }
+    }
+}
+
+.top-dms-skeleton,
+.new-members-skeleton {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+
+    .dms-loading-container,
+    .new-members-loading-container {
+        display: flex;
+        flex: 0.2;
+        flex-direction: column;
+        align-items: flex-start;
+
+        .title-line {
+            width: 124px;
+            margin-top: 16px;
+            margin-bottom: 8px;
+        }
+    }
+}
+
+// ----- Empty state (ported from the deprecated `.empty-state`) ---------
+
+.insights-empty-state {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    margin: 32px 0;
+}
+
+.insights-empty-state__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    margin-bottom: 8px;
+    padding: 10px;
+    background: rgba(var(--center-channel-color-rgb), 0.08);
+    border-radius: 50%;
+}
+
+.insights-empty-state__icon .icon {
+    width: 20px;
+    color: rgba(var(--center-channel-color-rgb), 0.56);
+    font-size: 20px;
+}
+
+.insights-empty-state__text {
+    max-width: 160px;
+    color: rgba(var(--center-channel-color-rgb), 0.72);
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 16px;
+    text-align: center;
+}
+
+// ----- Shared list items -----------------------------------------------
+
+.top-reactions,
+.top-channels,
+.top-threads,
+.top-dms,
+.top-inactive-channels,
+.new-team-members__list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.top-reactions__item,
+.top-channels__item,
+.top-threads__item,
+.top-dms__item,
+.top-inactive-channels__item,
+.new-team-members__item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(var(--center-channel-color-rgb), 0.08);
+    font-size: 13px;
+    line-height: 16px;
+}
+
+// Clickable list rows (used by Top Channels / Top Threads / Top DMs /
+// Top Inactive Channels / New Team Members lists when a teamName is
+// supplied). Pointer + hover tint, port of the deprecated `.channel-row` /
+// `.thread-item` hover treatment.
+
+.top-channels__item--clickable,
+.top-threads__item--clickable,
+.top-dms__item--clickable,
+.top-inactive-channels__item--clickable,
+.new-team-members__item--clickable {
+    cursor: pointer;
+    transition: background-color 80ms ease;
+}
+
+.top-channels__item--clickable:hover,
+.top-threads__item--clickable:hover,
+.top-dms__item--clickable:hover,
+.top-inactive-channels__item--clickable:hover,
+.new-team-members__item--clickable:hover {
+    background-color: rgba(var(--center-channel-color-rgb), 0.04);
+}
+
+.top-reactions__item:last-child,
+.top-channels__item:last-child,
+.top-threads__item:last-child,
+.top-dms__item:last-child,
+.top-inactive-channels__item:last-child,
+.new-team-members__item:last-child {
+    border-bottom: none;
+}
+
+// Top reactions — give the rank column a fixed width so the count column
+// aligns across rows.
+
+.top-reactions__rank {
+    width: 24px;
+    color: rgba(var(--center-channel-color-rgb), 0.5);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+}
+
+.top-reactions__emoji {
+    flex: 1;
+    color: var(--center-channel-color);
+    font-weight: 600;
+}
+
+.top-reactions__count {
+    color: rgba(var(--center-channel-color-rgb), 0.72);
+    font-variant-numeric: tabular-nums;
+}
+
+// Top channels (ported from `.top-channel-list .channel-row` block in
+// deprecated activity_and_insights.scss). Rank-coded horizontal bars
+// match the deprecated `:nth-of-type(1..5)` colors verbatim
+// (button-bg / online / away / dnd / new-message-separator).
+
+.top-channel-list .channel-row {
+    display: flex;
+    align-items: center;
+    padding: 10px 12px;
+    color: inherit;
+    text-decoration: none;
+}
+
+.top-channel-list .channel-row:hover {
+    background-color: rgba(var(--center-channel-color-rgb), 0.08);
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.top-channel-list .channel-row .channel-display-name {
+    display: flex;
+    overflow: hidden;
+    flex: 1 0;
+    align-items: center;
+    gap: 6px;
+}
+
+.top-channel-list .channel-row .channel-display-name i.icon {
+    width: 16px;
+    height: 16px;
+    color: rgba(var(--center-channel-color-rgb), 0.56);
+    font-size: 16px;
+}
+
+.top-channel-list .channel-row .channel-display-name .display-name {
+    overflow: hidden;
+    color: var(--center-channel-color);
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 16px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.top-channel-list .channel-row .channel-message-count {
+    display: flex;
+    flex: 1 0;
+    align-items: center;
+}
+
+.top-channel-list .channel-row .channel-message-count .message-count {
+    display: inline-flex;
+    flex: 0.2 0;
+    justify-content: flex-end;
+    color: rgba(var(--center-channel-color-rgb), 0.72);
+    font-size: 11px;
+    font-weight: 400;
+    line-height: 16px;
+    text-align: right;
+}
+
+.top-channel-list .channel-row .channel-message-count .horizontal-bar {
+    height: 8px;
+    margin-left: 16px;
+    border-radius: 6px;
+    background-color: rgba(var(--center-channel-color-rgb), 0.32);
+}
+
+.top-channel-list .channel-row:nth-of-type(1) .horizontal-bar { background-color: var(--button-bg); }
+.top-channel-list .channel-row:nth-of-type(2) .horizontal-bar { background-color: var(--online-indicator); }
+.top-channel-list .channel-row:nth-of-type(3) .horizontal-bar { background-color: var(--away-indicator); }
+.top-channel-list .channel-row:nth-of-type(4) .horizontal-bar { background-color: var(--dnd-indicator); }
+.top-channel-list .channel-row:nth-of-type(5) .horizontal-bar { background-color: var(--new-message-separator); }
+
+// Top threads (ported from the deprecated `top_threads.scss`).
+
+.thread-list .thread-item {
+    width: 100%;
+    padding: 12px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.thread-list .thread-item:hover {
+    background: rgba(var(--center-channel-color-rgb), 0.08);
+}
+
+.thread-details {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.thread-details .display-name {
+    overflow: hidden;
+    color: var(--center-channel-color);
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 16px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.thread-details .reply-count {
+    flex: 1;
+    margin-left: auto;
+    text-align: end;
+}
+
+.thread-details .reply-count i.icon {
+    width: 12px;
+    height: 12px;
+    color: rgba(var(--center-channel-color-rgb), 0.56);
+    font-size: 12px;
+}
+
+.thread-details .reply-count span {
+    color: rgba(var(--center-channel-color-rgb), 0.64);
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 16px;
+}
+
+.thread-list .preview {
+    display: -webkit-box;
+    overflow: hidden;
+    height: 32px;
+    max-height: 32px;
+    margin: 0;
+    -webkit-box-orient: vertical;
+    color: rgba(var(--center-channel-color-rgb), 0.72);
+    font-size: 12px;
+    -webkit-line-clamp: 2;
+    line-height: 16px;
+}
+
+// Top DMs (ported from the deprecated activity_and_insights.scss
+// `.top-dms-container` block).
+
+.top-dms-container {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+
+    .top-dms-item {
+        display: flex;
+        flex-direction: column;
+        flex: 0 0 16.66%;
+        padding: 12px;
+        margin-top: auto;
+        color: inherit;
+        text-decoration: none;
+    }
+
+    .top-dms-item:hover {
+        background: rgba(var(--center-channel-color-rgb), 0.08);
+        border-radius: 4px;
+        cursor: pointer;
+    }
+
+    @media screen and (max-width: 1279px) {
+        .top-dms-item {
+            flex-basis: 100%;
+            flex-direction: row;
+            align-items: center;
+        }
+    }
+
+    .Avatar___xl {
+        width: 72px;
+        min-width: 72px;
+        height: 72px;
+    }
+
+    .dm-info {
+        display: flex;
+        flex-direction: column;
+        margin-top: 12px;
+
+        @media screen and (max-width: 1279px) {
+            overflow: hidden;
+            width: 100%;
+            margin-top: 0;
+            margin-left: 12px;
+        }
+
+        .dm-name {
+            overflow: hidden;
+            color: var(--center-channel-color);
+            font-size: 14px;
+            font-weight: 600;
+            line-height: 20px;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .dm-role {
+            overflow: hidden;
+            min-height: 16px;
+            margin-top: 4px;
+            color: rgba(var(--center-channel-color-rgb), 0.72);
+            font-size: 12px;
+            font-weight: 400;
+            line-height: 16px;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .channel-message-count {
+            display: flex;
+            align-items: center;
+            margin-top: 4px;
+
+            .message-count {
+                color: rgba(var(--center-channel-color-rgb), 0.72);
+                font-size: 11px;
+                font-weight: 400;
+                line-height: 16px;
+            }
+
+            .horizontal-bar {
+                height: 8px;
+                margin-left: 8px;
+                background-color: var(--online-indicator);
+                border-radius: 6px;
+            }
+        }
+    }
+}
+
+// Top inactive channels (ported from `.least-active-channels-container`
+// `.channel-row` block in deprecated activity_and_insights.scss).
+
+.channel-list .channel-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    color: inherit;
+    text-decoration: none;
+}
+
+.channel-list .channel-row:hover {
+    background: rgba(var(--center-channel-color-rgb), 0.08);
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.channel-list .channel-row .channel-info {
+    display: flex;
+    overflow: hidden;
+    flex: 0.6;
+    flex-direction: column;
+}
+
+.channel-list .channel-row .channel-display-name {
+    display: flex;
+    overflow: hidden;
+    align-items: center;
+    gap: 6px;
+}
+
+.channel-list .channel-row .channel-display-name i.icon {
+    width: 16px;
+    height: 16px;
+    color: rgba(var(--center-channel-color-rgb), 0.56);
+    font-size: 16px;
+}
+
+.channel-list .channel-row .channel-display-name .display-name {
+    overflow: hidden;
+    color: var(--center-channel-color);
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 16px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.channel-list .channel-row .last-activity {
+    color: rgba(var(--center-channel-color-rgb), 0.56);
+    font-size: 11px;
+    font-weight: 400;
+    line-height: 16px;
+}
+
+// New team members (deprecated `new-members-item` shares the
+// `top-dms-item` layout — see top-dms-container above for the
+// avatar/info structure).
+
+.new-members-item .channel-message-count {
+    .say-hello {
+        margin-left: 6px;
+        color: var(--button-bg);
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 16px;
+    }
+
+    img.emoticon {
+        margin-right: 6px;
+    }
+}
+
+// Ported from the deprecated `.new-members-info` block in
+// activity_and_insights.scss.
+
+.new-members-info {
+    display: flex;
+    flex-direction: column;
+    align-self: flex-start;
+    padding: 12px;
+}
+
+.new-members-info span.total-count {
+    color: var(--center-channel-color);
+    font-size: 52px;
+    font-weight: 400;
+    line-height: 48px;
+}
+
+.new-members-info .members-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.new-members-info .time-range-info {
+    color: rgba(var(--center-channel-color-rgb), 0.72);
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 16px;
+}
+
+.new-members-info button.see-all-button {
+    display: flex;
+    align-items: center;
+    margin-top: 8px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: var(--button-bg);
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 16px;
+}
+
+.new-members-info button.see-all-button:hover {
+    text-decoration: underline;
+}
+
+.new-members-info button.see-all-button .icon-chevron-right {
+    width: 16px;
+    height: 16px;
+    font-size: 16px;
+}
+
+// ----- Top-channels line chart ----------------------------------------
+//
+// Wraps the chart.js canvas in a fixed-height container so chart.js can
+// fit itself responsively. Matches the deprecated activity_and_insights
+// `.top-channel-line-chart` height.
+
+.top-channels-line-chart {
+    width: 100%;
+    height: 200px;
+    margin-bottom: 16px;
+}
+
+// ----- Header centre component (in the product top bar) ---------------
+
+.insights-header {
+    display: flex;
+    align-items: center;
+    height: 100%;
+}
+
+.insights-header__title {
+    margin: 0;
+    color: var(--center-channel-color);
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 24px;
+}
