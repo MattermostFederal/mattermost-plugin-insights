@@ -1,6 +1,7 @@
 {
     "id": "insights",
     "name": "Mattermost Insights",
+    "version": "0.1.0",
     "description": "Surfaces top channels, top reactions, top threads, top DMs, top inactive channels, and new team members across today, 7-day, and 28-day windows.",
     "homepage_url": "https://github.com/MattermostFederal/mattermost-plugin-insights",
     "support_url": "https://github.com/MattermostFederal/mattermost-plugin-insights/issues",
