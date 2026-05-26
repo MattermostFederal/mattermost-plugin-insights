@@ -470,7 +470,7 @@ sbom: install-sbom-tools
 	@mkdir -p dist/sbom
 ifneq ($(HAS_SERVER),)
 	@echo "Generating Go SBOM..."
-	$(GOBIN)/cyclonedx-gomod mod -json -output dist/sbom/server-sbom.json
+	$(GOBIN)/cyclonedx-gomod mod -json -licenses -assert-licenses -output dist/sbom/server-sbom.json
 endif
 ifneq ($(HAS_WEBAPP),)
 	@echo "Generating Node.js SBOM..."
