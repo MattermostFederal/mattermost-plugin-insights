@@ -54,7 +54,7 @@ test('team scope hits the team route', async ({mount, page}) => {
     await mount(
         <TopPlaybooksTable
             scope='team'
-            timeRange='today'
+            timeRange='7_day'
             teamId='team42'
         />,
     );

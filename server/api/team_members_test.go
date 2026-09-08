@@ -28,7 +28,7 @@ func newAdminUser(id string) *model.User {
 func TestAPI_NewTeamMembers_unauthenticated(t *testing.T) {
 	api := New(&apitest.AuthStub{}, &apitest.DirectoryStub{}, &apitest.StoreStub{})
 	w := httptest.NewRecorder()
-	api.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/api/v1/teams/"+testTeamID+"/top/team_members?time_range=today", nil))
+	api.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/api/v1/teams/"+testTeamID+"/top/team_members?time_range=7_day", nil))
 	if w.Code != http.StatusUnauthorized {
 		t.Fatalf("status = %d; want 401", w.Code)
 	}
@@ -38,7 +38,7 @@ func TestAPI_NewTeamMembers_noLicense(t *testing.T) {
 	auth := &apitest.AuthStub{Users: map[string]*model.User{testUserID: newRegularUser(testUserID)}}
 	api := New(auth, &apitest.DirectoryStub{}, &apitest.StoreStub{})
 	w := httptest.NewRecorder()
-	api.ServeHTTP(w, newAuthedRequest(http.MethodGet, "/api/v1/teams/"+testTeamID+"/top/team_members?time_range=today", testUserID))
+	api.ServeHTTP(w, newAuthedRequest(http.MethodGet, "/api/v1/teams/"+testTeamID+"/top/team_members?time_range=7_day", testUserID))
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("status = %d; want 403 without license", w.Code)
 	}
@@ -51,7 +51,7 @@ func TestAPI_NewTeamMembers_notMember(t *testing.T) {
 	}
 	api := New(auth, &apitest.DirectoryStub{}, &apitest.StoreStub{})
 	w := httptest.NewRecorder()
-	api.ServeHTTP(w, newAuthedRequest(http.MethodGet, "/api/v1/teams/"+testTeamID+"/top/team_members?time_range=today", testUserID))
+	api.ServeHTTP(w, newAuthedRequest(http.MethodGet, "/api/v1/teams/"+testTeamID+"/top/team_members?time_range=7_day", testUserID))
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("status = %d; want 403 when not a team member", w.Code)
 	}
@@ -101,7 +101,7 @@ func TestAPI_NewTeamMembers_passesShowFullNameForAdminEvenWhenPrivacyOff(t *test
 	store := &apitest.StoreStub{NewTeamMembersResult: &insights.NewTeamMembersList{}}
 	api := New(auth, directory, store)
 	w := httptest.NewRecorder()
-	api.ServeHTTP(w, newAuthedRequest(http.MethodGet, "/api/v1/teams/"+testTeamID+"/top/team_members?time_range=today", adminID))
+	api.ServeHTTP(w, newAuthedRequest(http.MethodGet, "/api/v1/teams/"+testTeamID+"/top/team_members?time_range=7_day", adminID))
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d; want 200; body=%s", w.Code, w.Body.String())
 	}
@@ -120,7 +120,7 @@ func TestAPI_NewTeamMembers_passesShowFullNameFalseForNonAdminWhenPrivacyOff(t *
 	store := &apitest.StoreStub{NewTeamMembersResult: &insights.NewTeamMembersList{}}
 	api := New(auth, directory, store)
 	w := httptest.NewRecorder()
-	api.ServeHTTP(w, newAuthedRequest(http.MethodGet, "/api/v1/teams/"+testTeamID+"/top/team_members?time_range=today", testUserID))
+	api.ServeHTTP(w, newAuthedRequest(http.MethodGet, "/api/v1/teams/"+testTeamID+"/top/team_members?time_range=7_day", testUserID))
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d; want 200; body=%s", w.Code, w.Body.String())
 	}

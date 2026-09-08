@@ -25,7 +25,7 @@ func TestAPI_TopInactiveChannelsForUser_unauthenticated(t *testing.T) {
 	skipIfPersonalInsightsDisabled(t)
 	api := New(&apitest.AuthStub{}, &apitest.DirectoryStub{}, &apitest.StoreStub{})
 	w := httptest.NewRecorder()
-	api.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/api/v1/users/me/top/inactive_channels?time_range=today", nil))
+	api.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/api/v1/users/me/top/inactive_channels?time_range=7_day", nil))
 	if w.Code != http.StatusUnauthorized {
 		t.Fatalf("status = %d; want 401", w.Code)
 	}
@@ -57,7 +57,7 @@ func TestAPI_TopInactiveChannelsForTeam_noLicense(t *testing.T) {
 	auth := &apitest.AuthStub{Users: map[string]*model.User{testUserID: newRegularUser(testUserID)}}
 	api := New(auth, &apitest.DirectoryStub{}, &apitest.StoreStub{})
 	w := httptest.NewRecorder()
-	api.ServeHTTP(w, newAuthedRequest(http.MethodGet, "/api/v1/teams/"+testTeamID+"/top/inactive_channels?time_range=today", testUserID))
+	api.ServeHTTP(w, newAuthedRequest(http.MethodGet, "/api/v1/teams/"+testTeamID+"/top/inactive_channels?time_range=7_day", testUserID))
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("status = %d; want 403", w.Code)
 	}
@@ -76,7 +76,7 @@ func TestAPI_TopInactiveChannelsForTeam_returnsItems(t *testing.T) {
 	}
 	api := New(auth, &apitest.DirectoryStub{}, store)
 	w := httptest.NewRecorder()
-	api.ServeHTTP(w, newAuthedRequest(http.MethodGet, "/api/v1/teams/"+testTeamID+"/top/inactive_channels?time_range=today", testUserID))
+	api.ServeHTTP(w, newAuthedRequest(http.MethodGet, "/api/v1/teams/"+testTeamID+"/top/inactive_channels?time_range=7_day", testUserID))
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d; want 200; body=%s", w.Code, w.Body.String())
 	}

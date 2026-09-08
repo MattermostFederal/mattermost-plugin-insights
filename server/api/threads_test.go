@@ -30,7 +30,7 @@ func TestAPI_TopThreadsForUser_unauthenticated(t *testing.T) {
 	skipIfPersonalInsightsDisabled(t)
 	api := New(&apitest.AuthStub{}, &apitest.DirectoryStub{}, &apitest.StoreStub{})
 	w := httptest.NewRecorder()
-	api.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/api/v1/users/me/top/threads?time_range=today", nil))
+	api.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/api/v1/users/me/top/threads?time_range=7_day", nil))
 	if w.Code != http.StatusUnauthorized {
 		t.Fatalf("status = %d; want 401", w.Code)
 	}
@@ -41,7 +41,7 @@ func TestAPI_TopThreadsForUser_guest(t *testing.T) {
 	auth := &apitest.AuthStub{Users: map[string]*model.User{testGuestID: newGuestUser(testGuestID)}}
 	api := New(auth, &apitest.DirectoryStub{}, &apitest.StoreStub{})
 	w := httptest.NewRecorder()
-	api.ServeHTTP(w, newAuthedRequest(http.MethodGet, "/api/v1/users/me/top/threads?time_range=today", testGuestID))
+	api.ServeHTTP(w, newAuthedRequest(http.MethodGet, "/api/v1/users/me/top/threads?time_range=7_day", testGuestID))
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("status = %d; want 403 for guest", w.Code)
 	}
@@ -103,7 +103,7 @@ func TestAPI_TopThreadsForTeam_noLicense(t *testing.T) {
 	auth := &apitest.AuthStub{Users: map[string]*model.User{testUserID: newRegularUser(testUserID)}}
 	api := New(auth, &apitest.DirectoryStub{}, &apitest.StoreStub{})
 	w := httptest.NewRecorder()
-	api.ServeHTTP(w, newAuthedRequest(http.MethodGet, "/api/v1/teams/"+testTeamID+"/top/threads?time_range=today", testUserID))
+	api.ServeHTTP(w, newAuthedRequest(http.MethodGet, "/api/v1/teams/"+testTeamID+"/top/threads?time_range=7_day", testUserID))
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("status = %d; want 403 without Professional license", w.Code)
 	}
@@ -116,7 +116,7 @@ func TestAPI_TopThreadsForTeam_notMember(t *testing.T) {
 	}
 	api := New(auth, &apitest.DirectoryStub{}, &apitest.StoreStub{})
 	w := httptest.NewRecorder()
-	api.ServeHTTP(w, newAuthedRequest(http.MethodGet, "/api/v1/teams/"+testTeamID+"/top/threads?time_range=today", testUserID))
+	api.ServeHTTP(w, newAuthedRequest(http.MethodGet, "/api/v1/teams/"+testTeamID+"/top/threads?time_range=7_day", testUserID))
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("status = %d; want 403 when not a team member", w.Code)
 	}
@@ -145,7 +145,7 @@ func TestAPI_TopThreadsForTeam_returnsHydratedItems(t *testing.T) {
 	}
 	api := New(auth, directory, store)
 	w := httptest.NewRecorder()
-	api.ServeHTTP(w, newAuthedRequest(http.MethodGet, "/api/v1/teams/"+testTeamID+"/top/threads?time_range=today", testUserID))
+	api.ServeHTTP(w, newAuthedRequest(http.MethodGet, "/api/v1/teams/"+testTeamID+"/top/threads?time_range=7_day", testUserID))
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d; want 200; body=%s", w.Code, w.Body.String())
 	}

@@ -15,17 +15,6 @@ test('renders the total count and 7-day time range info', async ({mount}) => {
     await expect(component).toContainText('Joined the team in the last 7 days');
 });
 
-test('renders today copy for the today time range', async ({mount}) => {
-    const component = await mount(
-        <NewMembersTotal
-            total={5}
-            timeRange='today'
-            openInsightsModal={() => undefined}
-        />,
-    );
-    await expect(component).toContainText('Joined the team today');
-});
-
 test('renders 28-day copy for the 28_day time range', async ({mount}) => {
     const component = await mount(
         <NewMembersTotal

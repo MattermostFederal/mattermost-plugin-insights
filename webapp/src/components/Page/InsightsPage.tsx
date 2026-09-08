@@ -34,7 +34,7 @@ function readQueryState(): {scope: Scope; range: TimeRange} {
         scope = 'my';
     }
     const rawRange = params.get('range');
-    const range: TimeRange = (rawRange === 'today' || rawRange === '28_day') ? rawRange : '7_day';
+    const range: TimeRange = rawRange === '28_day' ? '28_day' : '7_day';
     return {scope, range};
 }
 

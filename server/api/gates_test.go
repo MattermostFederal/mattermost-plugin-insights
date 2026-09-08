@@ -97,13 +97,13 @@ type gateRoute struct {
 // asserts they are unreachable otherwise.
 func personalRoutes() []gateRoute {
 	return []gateRoute{
-		{"/api/v1/users/me/top/reactions?time_range=today", "user"},
-		{"/api/v1/users/me/top/channels?time_range=today", "user"},
-		{"/api/v1/users/me/top/threads?time_range=today", "user"},
-		{"/api/v1/users/me/top/dms?time_range=today", "user"},
-		{"/api/v1/users/me/top/inactive_channels?time_range=today", "user"},
-		{"/api/v1/users/me/top/boards?time_range=today&team_id=" + testTeamID, "user"},
-		{"/api/v1/users/me/top/playbooks?time_range=today&team_id=" + testTeamID, "user"},
+		{"/api/v1/users/me/top/reactions?time_range=7_day", "user"},
+		{"/api/v1/users/me/top/channels?time_range=7_day", "user"},
+		{"/api/v1/users/me/top/threads?time_range=7_day", "user"},
+		{"/api/v1/users/me/top/dms?time_range=7_day", "user"},
+		{"/api/v1/users/me/top/inactive_channels?time_range=7_day", "user"},
+		{"/api/v1/users/me/top/boards?time_range=7_day&team_id=" + testTeamID, "user"},
+		{"/api/v1/users/me/top/playbooks?time_range=7_day&team_id=" + testTeamID, "user"},
 	}
 }
 
@@ -111,13 +111,13 @@ func personalRoutes() []gateRoute {
 // gates-matrix tests.
 func allRoutes() []gateRoute {
 	routes := []gateRoute{
-		{"/api/v1/teams/" + testTeamID + "/top/reactions?time_range=today", "team"},
-		{"/api/v1/teams/" + testTeamID + "/top/channels?time_range=today", "team"},
-		{"/api/v1/teams/" + testTeamID + "/top/threads?time_range=today", "team"},
-		{"/api/v1/teams/" + testTeamID + "/top/inactive_channels?time_range=today", "team"},
-		{"/api/v1/teams/" + testTeamID + "/top/team_members?time_range=today", "team"},
-		{"/api/v1/teams/" + testTeamID + "/top/boards?time_range=today", "team"},
-		{"/api/v1/teams/" + testTeamID + "/top/playbooks?time_range=today", "team"},
+		{"/api/v1/teams/" + testTeamID + "/top/reactions?time_range=7_day", "team"},
+		{"/api/v1/teams/" + testTeamID + "/top/channels?time_range=7_day", "team"},
+		{"/api/v1/teams/" + testTeamID + "/top/threads?time_range=7_day", "team"},
+		{"/api/v1/teams/" + testTeamID + "/top/inactive_channels?time_range=7_day", "team"},
+		{"/api/v1/teams/" + testTeamID + "/top/team_members?time_range=7_day", "team"},
+		{"/api/v1/teams/" + testTeamID + "/top/boards?time_range=7_day", "team"},
+		{"/api/v1/teams/" + testTeamID + "/top/playbooks?time_range=7_day", "team"},
 	}
 	if EnablePersonalInsights {
 		routes = append(routes, personalRoutes()...)
@@ -269,7 +269,7 @@ func TestGates_acceptsAllSupportedLicenseTiers(t *testing.T) {
 			}
 			api := New(auth, &apitest.DirectoryStub{}, fullyStubbedStore())
 			w := httptest.NewRecorder()
-			api.ServeHTTP(w, newAuthedRequest(http.MethodGet, "/api/v1/teams/"+testTeamID+"/top/reactions?time_range=today", testUserID))
+			api.ServeHTTP(w, newAuthedRequest(http.MethodGet, "/api/v1/teams/"+testTeamID+"/top/reactions?time_range=7_day", testUserID))
 			if w.Code != http.StatusOK {
 				t.Errorf("%s license: status = %d; want 200; body=%s", tier.name, w.Code, w.Body.String())
 			}

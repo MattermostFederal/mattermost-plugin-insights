@@ -32,10 +32,13 @@ func parseTopParams(w http.ResponseWriter, r *http.Request) (topParams, bool) {
 		return topParams{}, false
 	}
 	switch timeRange {
-	case insights.TimeRangeToday, insights.TimeRange7Day, insights.TimeRange28Day:
+	case insights.TimeRange7Day, insights.TimeRange28Day:
 		// ok
 	default:
-		writeJSONError(w, http.StatusBadRequest, "time_range must be one of: today, 7_day, 28_day")
+		// "today" is deliberately rejected here: team insights are served
+		// from a once-daily snapshot, which cannot answer a since-midnight
+		// question. See insights.StartOfWindowUTC.
+		writeJSONError(w, http.StatusBadRequest, "time_range must be one of: 7_day, 28_day")
 		return topParams{}, false
 	}
 
@@ -89,11 +92,18 @@ func (a *API) requireRegularUser(w http.ResponseWriter, userID string) (*model.U
 	return user, true
 }
 
-// computeSinceMillis resolves time_range to a start unix-millisecond timestamp
-// in the user's local timezone (falling back to UTC).
-func computeSinceMillis(w http.ResponseWriter, timeRange string, user *model.User) (int64, bool) {
-	loc := user.GetTimezoneLocation()
-	start, err := insights.StartOfDayForTimeRange(timeRange, loc)
+// computeSinceMillis resolves time_range to a start unix-millisecond
+// timestamp at midnight UTC.
+//
+// This used to resolve against the requester's timezone. It no longer can:
+// team insights are served from one snapshot per (team, range) shared across
+// the team, so a window that moved with the caller would make each cached
+// entry correct only for whichever timezone populated it.
+//
+// The user argument is retained because every caller already has one and the
+// signature is threaded through all handlers; it is deliberately unused.
+func computeSinceMillis(w http.ResponseWriter, timeRange string, _ *model.User) (int64, bool) {
+	start, err := insights.StartOfWindowUTC(timeRange)
 	if err != nil {
 		writeJSONError(w, http.StatusBadRequest, err.Error())
 		return 0, false

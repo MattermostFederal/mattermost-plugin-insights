@@ -87,17 +87,15 @@ func (a *API) attachChartData(ctx context.Context, res *insights.TopChannelList,
 		return nil
 	}
 
-	grouping := insights.PostsByDay
-	if timeRange == insights.TimeRangeToday {
-		grouping = insights.PostsByHour
-	}
-
-	loc := user.GetTimezoneLocation()
-	rows, err := a.store.PostCountsByDuration(ctx, res.ChannelIDs(), sinceMillis, postAuthorUserID, grouping, loc.String())
+	// Always day-grouped now. Hour grouping existed only for the "today"
+	// range, which the daily snapshot retired (insights.StartOfWindowUTC).
+	// Bucketing is UTC for the same reason the window is: the result is
+	// shared across the team, so it cannot follow the caller's clock.
+	rows, err := a.store.PostCountsByDuration(ctx, res.ChannelIDs(), sinceMillis, postAuthorUserID, insights.PostsByDay, time.UTC.String())
 	if err != nil {
 		return err
 	}
-	start := time.UnixMilli(sinceMillis).In(loc)
+	start := time.UnixMilli(sinceMillis).UTC()
 	res.PostCountByDuration = insights.ToChannelPostCountByDuration(rows, &start, insights.NumberOfDaysForTimeRange(timeRange), res.ChannelIDs())
 	return nil
 }
