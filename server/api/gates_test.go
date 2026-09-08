@@ -118,6 +118,7 @@ func allRoutes() []gateRoute {
 		{"/api/v1/teams/" + testTeamID + "/top/team_members?time_range=7_day", "team"},
 		{"/api/v1/teams/" + testTeamID + "/top/boards?time_range=7_day", "team"},
 		{"/api/v1/teams/" + testTeamID + "/top/playbooks?time_range=7_day", "team"},
+		{"/api/v1/teams/" + testTeamID + "/channel_activity?time_range=7_day", "team"},
 	}
 	if EnablePersonalInsights {
 		routes = append(routes, personalRoutes()...)

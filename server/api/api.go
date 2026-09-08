@@ -159,6 +159,10 @@ func NewWithTelemetry(auth AuthProvider, _ /*reserved*/ any, directory Directory
 	v1.HandleFunc("/teams/{team_id}/top/boards", a.requireUser(a.handleTopBoardsForTeam)).Methods(http.MethodGet)
 	v1.HandleFunc("/teams/{team_id}/top/playbooks", a.requireUser(a.handleTopPlaybooksForTeam)).Methods(http.MethodGet)
 
+	// Channel governance — every channel in the team with its activity and
+	// metadata, rather than a top-N. Same gates as the routes above.
+	v1.HandleFunc("/teams/{team_id}/channel_activity", a.requireUser(a.handleChannelGovernance)).Methods(http.MethodGet)
+
 	// User-scoped insights (no license requirement).
 	//
 	// Disabled — see EnablePersonalInsights. The handlers and their store

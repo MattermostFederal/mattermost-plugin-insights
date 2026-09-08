@@ -111,6 +111,31 @@ type ChannelActivity struct {
 	MemberCount   int64 `json:"member_count"`
 }
 
+// ChannelGovernanceList is the channel-governance table's payload: a page of
+// channels plus a summary describing the whole team, not the page.
+type ChannelGovernanceList struct {
+	ListData
+	Items   []*ChannelActivity       `json:"items"`
+	Summary ChannelGovernanceSummary `json:"summary"`
+}
+
+// ChannelGovernanceSummary answers "have we labelled our channels
+// effectively" over the full visible set. Computed server-side because the
+// client only ever holds one page.
+type ChannelGovernanceSummary struct {
+	TotalChannels int64 `json:"total_channels"`
+
+	// ActiveChannels had at least one non-integration post in the window.
+	// TotalChannels minus this is the size of the cleanup backlog.
+	ActiveChannels int64 `json:"active_channels"`
+
+	// WithPurpose and WithHeader are the labelling-coverage numerators.
+	// Mattermost channels carry no tags and sidebar categories are per-user,
+	// so these two free-text fields are the only labelling signal available.
+	WithPurpose int64 `json:"with_purpose"`
+	WithHeader  int64 `json:"with_header"`
+}
+
 // Top Inactive Channels
 
 type TopInactiveChannelList struct {
