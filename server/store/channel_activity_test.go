@@ -63,8 +63,6 @@ func seedChannelActivityFixture(t *testing.T, db *sql.DB) int64 {
 	beforeWindow := since - 10_000
 	postIDs := postIDGen('a')
 
-	user3 := "user3aaaaaaaaaaaaaaaaaaaaa"
-
 	seedActivityChannel(t, db, activeChID, "O", testTeamID, "active", "team standup", 100, now, 0)
 	seedMembers(t, db, activeChID, testUser1ID, testUser2ID)
 	seedPostBy(t, db, postIDs(), testUser1ID, activeChID, now)
@@ -76,7 +74,7 @@ func seedChannelActivityFixture(t *testing.T, db *sql.DB) int64 {
 	seedPostBy(t, db, postIDs(), testUser1ID, privateChID, now)
 
 	seedActivityChannel(t, db, abandonChID, "O", testTeamID, "abandoned", "old project", 300, 0, 0)
-	seedMembers(t, db, abandonChID, testUser1ID, testUser2ID, user3)
+	seedMembers(t, db, abandonChID, testUser1ID, testUser2ID, testUser3ID)
 
 	seedActivityChannel(t, db, unlabelledChID, "O", testTeamID, "unlabelled", "", 400, now, 0)
 	seedMembers(t, db, unlabelledChID, testUser1ID)
