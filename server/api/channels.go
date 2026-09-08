@@ -61,11 +61,32 @@ func (a *API) handleTopChannelsForTeam(w http.ResponseWriter, r *http.Request, u
 	if !ok {
 		return
 	}
-	res, err := a.store.TopChannelsForTeamSince(r.Context(), teamID, userID, since, params.page, params.perPage)
+	// Served from the daily snapshot rather than a per-request aggregation:
+	// one cached slice per (team, range), filtered to this user's visible
+	// channels, then sorted and paged in memory.
+	rows, err := a.visibleChannelActivity(r.Context(), userID, teamID, params.timeRange, since)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	sortChannelActivity(rows, false)
+	items, hasNext := pageChannelActivity(rows, params.page, params.perPage)
+
+	res := &insights.TopChannelList{
+		ListData: insights.ListData{HasNext: hasNext},
+		Items:    make([]*insights.TopChannel, 0, len(items)),
+	}
+	for _, c := range items {
+		res.Items = append(res.Items, &insights.TopChannel{
+			ID:           c.ID,
+			Type:         c.Type,
+			DisplayName:  c.DisplayName,
+			Name:         c.Name,
+			TeamID:       teamID,
+			MessageCount: c.MessageCount,
+		})
+	}
+
 	// Team-scoped chart aggregates over all authors (no user filter).
 	if hydrateErr := a.attachChartData(r.Context(), res, since, params.timeRange, "", user); hydrateErr != nil {
 		writeJSONError(w, http.StatusInternalServerError, hydrateErr.Error())

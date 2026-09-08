@@ -78,6 +78,23 @@ type StoreStub struct {
 	TopInactiveChannelsForTeamErr    error
 	TopInactiveChannelsForTeamCalls  []InactiveChannelsForTeamCall
 
+	// Channel activity — the cached team-wide aggregate. Counting calls here
+	// is how the API tests assert the cache is actually doing its job.
+	ChannelActivityResult []*insights.ChannelActivity
+	ChannelActivityErr    error
+	ChannelActivityCalls  []ChannelActivityCall
+
+	// PrivateChannelIDsResult is keyed by userID so a single stub can give
+	// two users different visibility.
+	PrivateChannelIDsResult map[string][]string
+	PrivateChannelIDsErr    error
+	PrivateChannelIDsCalls  []PrivateChannelIDsCall
+
+	// ParticipantsByChannel is keyed by channel id.
+	ParticipantsByChannel map[string][]string
+	ParticipantsErr       error
+	ParticipantsCalls     int
+
 	TopDMsForUserResult *insights.TopDMList
 	TopDMsForUserErr    error
 	TopDMsForUserCalls  []DMsForUserCall
@@ -258,6 +275,47 @@ func (s *StoreStub) TopInactiveChannelsForUserSince(_ context.Context, userID, t
 func (s *StoreStub) TopInactiveChannelsForTeamSince(_ context.Context, teamID, userID string, since int64, page, perPage int) (*insights.TopInactiveChannelList, error) {
 	s.TopInactiveChannelsForTeamCalls = append(s.TopInactiveChannelsForTeamCalls, InactiveChannelsForTeamCall{teamID, userID, since, page, perPage})
 	return s.TopInactiveChannelsForTeamResult, s.TopInactiveChannelsForTeamErr
+}
+
+// ChannelActivityCall records a call to ChannelActivityForTeam. Tests assert
+// on its length to prove the daily snapshot is served from cache rather than
+// re-aggregated per request.
+type ChannelActivityCall struct {
+	TeamID string
+	Since  int64
+}
+
+type PrivateChannelIDsCall struct {
+	UserID string
+	TeamID string
+}
+
+func (s *StoreStub) ChannelActivityForTeam(_ context.Context, teamID string, since int64) ([]*insights.ChannelActivity, error) {
+	s.ChannelActivityCalls = append(s.ChannelActivityCalls, ChannelActivityCall{teamID, since})
+	return s.ChannelActivityResult, s.ChannelActivityErr
+}
+
+func (s *StoreStub) PrivateChannelIDsForUser(_ context.Context, userID, teamID string) ([]string, error) {
+	s.PrivateChannelIDsCalls = append(s.PrivateChannelIDsCalls, PrivateChannelIDsCall{userID, teamID})
+	if s.PrivateChannelIDsErr != nil {
+		return nil, s.PrivateChannelIDsErr
+	}
+	return s.PrivateChannelIDsResult[userID], nil
+}
+
+func (s *StoreStub) AttachInactiveChannelParticipants(_ context.Context, channels []*insights.TopInactiveChannel) error {
+	s.ParticipantsCalls++
+	if s.ParticipantsErr != nil {
+		return s.ParticipantsErr
+	}
+	for _, c := range channels {
+		if parts, ok := s.ParticipantsByChannel[c.ID]; ok {
+			c.Participants = parts
+		} else {
+			c.Participants = []string{}
+		}
+	}
+	return nil
 }
 
 func (s *StoreStub) TopDMsForUserSince(_ context.Context, userID string, since int64, page, perPage int) (*insights.TopDMList, error) {

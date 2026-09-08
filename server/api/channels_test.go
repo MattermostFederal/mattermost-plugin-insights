@@ -126,8 +126,8 @@ func TestAPI_TopChannelsForTeam_chartHasNoUserFilter(t *testing.T) {
 		TeamPerms: map[string]map[string]bool{testUserID: {testTeamID: true}},
 	}
 	store := &apitest.StoreStub{
-		TopChannelsForTeamResult: &insights.TopChannelList{
-			Items: []*insights.TopChannel{{ID: "chT", Name: "team-channel", MessageCount: 9}},
+		ChannelActivityResult: []*insights.ChannelActivity{
+			{ID: "chT", Name: "team-channel", Type: model.ChannelTypeOpen, MessageCount: 9},
 		},
 	}
 	api := New(auth, &apitest.DirectoryStub{}, store)
@@ -155,8 +155,8 @@ func TestAPI_TopChannelsForTeam_returnsItems(t *testing.T) {
 		TeamPerms: map[string]map[string]bool{testUserID: {testTeamID: true}},
 	}
 	store := &apitest.StoreStub{
-		TopChannelsForTeamResult: &insights.TopChannelList{
-			Items: []*insights.TopChannel{{ID: "ch1", Name: "general", MessageCount: 50}},
+		ChannelActivityResult: []*insights.ChannelActivity{
+			{ID: "ch1", Name: "general", Type: model.ChannelTypeOpen, MessageCount: 50},
 		},
 	}
 	api := New(auth, &apitest.DirectoryStub{}, store)

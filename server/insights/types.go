@@ -88,10 +88,20 @@ type ChannelActivity struct {
 	// Governance metadata. Purpose and Header are the only free-text labels
 	// Mattermost channels carry — there is no tag field, and sidebar
 	// categories are per-user rather than per-channel.
-	Purpose    string `json:"purpose"`
-	Header     string `json:"header"`
-	CreateAt   int64  `json:"create_at"`
-	LastPostAt int64  `json:"last_post_at"`
+	Purpose  string `json:"purpose"`
+	Header   string `json:"header"`
+	CreateAt int64  `json:"create_at"`
+
+	// LastPostAt is all-time, read straight off Channels — "when was this
+	// channel last touched at all", which is what the governance table wants
+	// for a channel that has been silent for months.
+	//
+	// LastPostInWindow is the newest post inside the window, or 0 if there
+	// were none. Top Inactive Channels reports this one: its deprecated query
+	// derived LastActivityAt from max(Posts.CreateAt) over the windowed join,
+	// so a channel with no recent posts showed 0 rather than its real age.
+	LastPostAt       int64 `json:"last_post_at"`
+	LastPostInWindow int64 `json:"last_post_in_window"`
 
 	// MessageCount and ActivePosters cover the window; MemberCount is
 	// current. A high MemberCount against a zero MessageCount is the

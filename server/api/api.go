@@ -9,6 +9,7 @@ import (
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/pluginapi"
 
+	"github.com/MattermostFederal/mattermost-plugin-insights/server/cache"
 	"github.com/MattermostFederal/mattermost-plugin-insights/server/insights"
 )
 
@@ -23,6 +24,18 @@ type Storer interface {
 	NewTeamMembersSince(ctx context.Context, teamID string, since int64, page, perPage int, showFullName bool) (*insights.NewTeamMembersList, error)
 	TopChannelsForUserSince(ctx context.Context, userID, teamID string, since int64, page, perPage int) (*insights.TopChannelList, error)
 	TopChannelsForTeamSince(ctx context.Context, teamID, userID string, since int64, page, perPage int) (*insights.TopChannelList, error)
+
+	// ChannelActivityForTeam is the cached team-wide aggregate behind Top
+	// Channels, Top Inactive Channels, and the governance table. It takes no
+	// userID and no pagination so one result can be shared across the team;
+	// PrivateChannelIDsForUser supplies the per-request visibility filter.
+	ChannelActivityForTeam(ctx context.Context, teamID string, since int64) ([]*insights.ChannelActivity, error)
+	PrivateChannelIDsForUser(ctx context.Context, userID, teamID string) ([]string, error)
+
+	// AttachInactiveChannelParticipants fills in Participants for the rows
+	// on the current page. Deliberately not cached: it is bounded by
+	// per_page and keyed to the page's channel ids, so it stays small.
+	AttachInactiveChannelParticipants(ctx context.Context, channels []*insights.TopInactiveChannel) error
 	TopInactiveChannelsForUserSince(ctx context.Context, userID, teamID string, since int64, page, perPage int) (*insights.TopInactiveChannelList, error)
 	TopInactiveChannelsForTeamSince(ctx context.Context, teamID, userID string, since int64, page, perPage int) (*insights.TopInactiveChannelList, error)
 	TopDMsForUserSince(ctx context.Context, userID string, since int64, page, perPage int) (*insights.TopDMList, error)
@@ -83,6 +96,11 @@ type API struct {
 	store     Storer
 	telemetry Telemetry
 	router    *mux.Router
+
+	// cache holds the daily team snapshots. Entries are keyed by team and
+	// time range only — never by user — so the expensive aggregation runs
+	// once a day rather than once per page load.
+	cache *cache.Cache
 }
 
 // EnablePersonalInsights controls whether the user-scoped ("My") insight
@@ -119,7 +137,13 @@ func NewWithTelemetry(auth AuthProvider, _ /*reserved*/ any, directory Directory
 	if tel == nil {
 		tel = noopTelemetry{}
 	}
-	a := &API{auth: auth, directory: directory, store: st, telemetry: tel}
+	a := &API{
+		auth:      auth,
+		directory: directory,
+		store:     st,
+		telemetry: tel,
+		cache:     cache.New(cache.Options{}),
+	}
 
 	r := mux.NewRouter()
 	v1 := r.PathPrefix("/api/v1").Subrouter()

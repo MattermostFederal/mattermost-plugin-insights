@@ -98,31 +98,32 @@ func seedChannelActivityFixture(t *testing.T, db *sql.DB) int64 {
 	return since
 }
 
-func activityByID(t *testing.T, db *sql.DB, since int64) map[string]*struct {
+// activityRow flattens the fields the assertions below care about.
+type activityRow struct {
 	Purpose                            string
 	MessageCount, Posters, MemberCount int64
-	LastPostAt                         int64
+	LastPostAt, LastPostInWindow       int64
 	Type                               string
-} {
+}
+
+func activityByID(t *testing.T, db *sql.DB, since int64) map[string]*activityRow {
 	t.Helper()
 	s := NewFromDB(db)
 	rows, err := s.ChannelActivityForTeam(context.Background(), testTeamID, since)
 	if err != nil {
 		t.Fatalf("ChannelActivityForTeam: %v", err)
 	}
-	out := make(map[string]*struct {
-		Purpose                            string
-		MessageCount, Posters, MemberCount int64
-		LastPostAt                         int64
-		Type                               string
-	}, len(rows))
+	out := make(map[string]*activityRow, len(rows))
 	for _, r := range rows {
-		out[r.ID] = &struct {
-			Purpose                            string
-			MessageCount, Posters, MemberCount int64
-			LastPostAt                         int64
-			Type                               string
-		}{r.Purpose, r.MessageCount, r.ActivePosters, r.MemberCount, r.LastPostAt, string(r.Type)}
+		out[r.ID] = &activityRow{
+			Purpose:          r.Purpose,
+			MessageCount:     r.MessageCount,
+			Posters:          r.ActivePosters,
+			MemberCount:      r.MemberCount,
+			LastPostAt:       r.LastPostAt,
+			LastPostInWindow: r.LastPostInWindow,
+			Type:             string(r.Type),
+		}
 	}
 	return out
 }
@@ -201,6 +202,29 @@ func TestStore_ChannelActivityForTeam_reportsLastPostAtOutsideWindow(t *testing.
 	}
 	if abandoned := got[abandonChID]; abandoned.LastPostAt != 0 {
 		t.Errorf("never-posted channel LastPostAt = %d; want 0", abandoned.LastPostAt)
+	}
+}
+
+// LastPostAt and LastPostInWindow deliberately disagree for a channel whose
+// only activity predates the window. Top Inactive Channels reports the
+// windowed value (its deprecated query did), while the governance table wants
+// the all-time one.
+func TestStore_ChannelActivityForTeam_separatesAllTimeFromWindowedLastPost(t *testing.T) {
+	db := storetest.NewDB(t)
+	since := seedChannelActivityFixture(t, db)
+	got := activityByID(t, db, since)
+
+	stale := got[staleChID]
+	if stale.LastPostAt == 0 {
+		t.Error("stale channel LastPostAt = 0; want its real all-time timestamp")
+	}
+	if stale.LastPostInWindow != 0 {
+		t.Errorf("stale channel LastPostInWindow = %d; want 0 (no posts in window)", stale.LastPostInWindow)
+	}
+
+	active := got[activeChID]
+	if active.LastPostInWindow <= since {
+		t.Errorf("active channel LastPostInWindow = %d; want > since=%d", active.LastPostInWindow, since)
 	}
 }
 

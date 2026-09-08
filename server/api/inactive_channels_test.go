@@ -70,9 +70,12 @@ func TestAPI_TopInactiveChannelsForTeam_returnsItems(t *testing.T) {
 		TeamPerms: map[string]map[string]bool{testUserID: {testTeamID: true}},
 	}
 	store := &apitest.StoreStub{
-		TopInactiveChannelsForTeamResult: &insights.TopInactiveChannelList{
-			Items: []*insights.TopInactiveChannel{{ID: "ch", Name: "deserted", MessageCount: 0, Participants: model.StringArray{"u1"}}},
+		// CreateAt must predate the window or the "a new channel cannot be
+		// called inactive" filter drops it.
+		ChannelActivityResult: []*insights.ChannelActivity{
+			{ID: "ch", Name: "deserted", Type: model.ChannelTypeOpen, MessageCount: 0, CreateAt: 1},
 		},
+		ParticipantsByChannel: map[string][]string{"ch": {"u1"}},
 	}
 	api := New(auth, &apitest.DirectoryStub{}, store)
 	w := httptest.NewRecorder()

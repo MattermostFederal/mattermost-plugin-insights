@@ -37,6 +37,7 @@ SELECT
 	Channels.Header,
 	Channels.CreateAt,
 	Channels.LastPostAt,
+	COALESCE(max(Posts.CreateAt), 0) AS LastPostInWindow,
 	count(Posts.Id) AS MessageCount,
 	count(DISTINCT Posts.UserId) AS ActivePosters,
 	COALESCE(Members.MemberCount, 0) AS MemberCount
@@ -86,7 +87,7 @@ func (s *Store) ChannelActivityForTeam(ctx context.Context, teamID string, since
 		var c insights.ChannelActivity
 		if err := rows.Scan(
 			&c.ID, &c.Type, &c.DisplayName, &c.Name,
-			&c.Purpose, &c.Header, &c.CreateAt, &c.LastPostAt,
+			&c.Purpose, &c.Header, &c.CreateAt, &c.LastPostAt, &c.LastPostInWindow,
 			&c.MessageCount, &c.ActivePosters, &c.MemberCount,
 		); err != nil {
 			return nil, err

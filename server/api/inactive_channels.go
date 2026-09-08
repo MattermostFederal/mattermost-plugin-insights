@@ -5,6 +5,8 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/mattermost/mattermost/server/public/model"
+
+	"github.com/MattermostFederal/mattermost-plugin-insights/server/insights"
 )
 
 // handleTopInactiveChannelsForUser handles
@@ -53,8 +55,44 @@ func (a *API) handleTopInactiveChannelsForTeam(w http.ResponseWriter, r *http.Re
 	if !ok {
 		return
 	}
-	res, err := a.store.TopInactiveChannelsForTeamSince(r.Context(), teamID, userID, since, params.page, params.perPage)
+	rows, err := a.visibleChannelActivity(r.Context(), userID, teamID, params.timeRange, since)
 	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	// The deprecated query's `Channels.CreateAt < since` filter, preserved:
+	// a channel created inside the window cannot fairly be called inactive
+	// over that window. Applied here rather than in SQL because the cached
+	// aggregate is shared with surfaces that want every channel.
+	eligible := make([]*insights.ChannelActivity, 0, len(rows))
+	for _, c := range rows {
+		if c.CreateAt < since {
+			eligible = append(eligible, c)
+		}
+	}
+
+	sortChannelActivity(eligible, true)
+	items, hasNext := pageChannelActivity(eligible, params.page, params.perPage)
+
+	res := &insights.TopInactiveChannelList{
+		ListData: insights.ListData{HasNext: hasNext},
+		Items:    make([]*insights.TopInactiveChannel, 0, len(items)),
+	}
+	for _, c := range items {
+		res.Items = append(res.Items, &insights.TopInactiveChannel{
+			ID:          c.ID,
+			Type:        c.Type,
+			DisplayName: c.DisplayName,
+			Name:        c.Name,
+			// Windowed, not all-time — see insights.ChannelActivity.
+			LastActivityAt: c.LastPostInWindow,
+			MessageCount:   c.MessageCount,
+			Participants:   []string{},
+		})
+	}
+
+	if err := a.store.AttachInactiveChannelParticipants(r.Context(), res.Items); err != nil {
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
