@@ -15,7 +15,14 @@ CREATE TABLE channels (
     displayname  varchar(64) NOT NULL DEFAULT '',
     name         varchar(64) NOT NULL DEFAULT '',
     createat     bigint      NOT NULL DEFAULT 0,
-    deleteat     bigint      NOT NULL DEFAULT 0
+    deleteat     bigint      NOT NULL DEFAULT 0,
+    -- Channel-governance columns. Sizes mirror production Mattermost
+    -- (ChannelPurposeMaxRunes = 250, ChannelHeaderMaxRunes = 1024).
+    -- lastpostat is denormalized on Channels in production, so the
+    -- governance table reads it without touching Posts.
+    purpose      varchar(250)  NOT NULL DEFAULT '',
+    header       varchar(1024) NOT NULL DEFAULT '',
+    lastpostat   bigint        NOT NULL DEFAULT 0
 );
 
 CREATE TABLE channelmembers (

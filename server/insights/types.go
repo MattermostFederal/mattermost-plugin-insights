@@ -69,6 +69,38 @@ type TopChannel struct {
 	MessageCount int64             `json:"message_count"`
 }
 
+// Channel activity / governance
+
+// ChannelActivity is one channel's aggregate for a time window, before any
+// per-user visibility filtering has been applied. Rows are cached team-wide
+// and filtered at read time, so this deliberately carries no field that
+// depends on who is asking.
+//
+// The same row backs three surfaces: Top Channels (sorted by MessageCount
+// descending), Top Inactive Channels (ascending), and the channel-governance
+// table (untruncated, with the metadata columns shown).
+type ChannelActivity struct {
+	ID          string            `json:"id"`
+	Type        model.ChannelType `json:"type"`
+	DisplayName string            `json:"display_name"`
+	Name        string            `json:"name"`
+
+	// Governance metadata. Purpose and Header are the only free-text labels
+	// Mattermost channels carry — there is no tag field, and sidebar
+	// categories are per-user rather than per-channel.
+	Purpose    string `json:"purpose"`
+	Header     string `json:"header"`
+	CreateAt   int64  `json:"create_at"`
+	LastPostAt int64  `json:"last_post_at"`
+
+	// MessageCount and ActivePosters cover the window; MemberCount is
+	// current. A high MemberCount against a zero MessageCount is the
+	// clearest "abandoned channel" signal in the table.
+	MessageCount  int64 `json:"message_count"`
+	ActivePosters int64 `json:"active_posters"`
+	MemberCount   int64 `json:"member_count"`
+}
+
 // Top Inactive Channels
 
 type TopInactiveChannelList struct {
