@@ -228,6 +228,35 @@ func TestNew_appliesDefaults(t *testing.T) {
 	}
 }
 
+// An expired entry that is never read again must not stay resident. Without
+// a sweep the map grows with every team whose page is opened once.
+func TestGetOrBuild_expiredEntriesAreEvictedOnWrite(t *testing.T) {
+	clock := newClock()
+	c := New(Options{TTL: time.Hour, Now: clock.Now})
+
+	build := func(context.Context) (string, error) { return "v", nil }
+
+	// Populate several keys that will never be requested again.
+	for _, k := range []string{"team1", "team2", "team3"} {
+		if _, err := GetOrBuild(context.Background(), c, k, build); err != nil {
+			t.Fatalf("populate %s: %v", k, err)
+		}
+	}
+	if c.Len() != 3 {
+		t.Fatalf("Len = %d; want 3", c.Len())
+	}
+
+	// Age them all out, then write one unrelated key.
+	clock.Advance(2 * time.Hour)
+	if _, err := GetOrBuild(context.Background(), c, "team4", build); err != nil {
+		t.Fatalf("populate team4: %v", err)
+	}
+
+	if got := c.Len(); got != 1 {
+		t.Errorf("Len = %d after the stale keys aged out; want 1", got)
+	}
+}
+
 func TestInvalidate(t *testing.T) {
 	c := New(Options{TTL: time.Hour, Now: newClock().Now})
 	build := func(context.Context) (string, error) { return "v", nil }

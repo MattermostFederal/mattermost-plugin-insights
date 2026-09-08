@@ -117,8 +117,24 @@ func (c *Cache) load(key string) (any, bool) {
 
 func (c *Cache) store(key string, value any) {
 	c.mu.Lock()
-	c.items[key] = entry{value: value, builtAt: c.now()}
-	c.mu.Unlock()
+	defer c.mu.Unlock()
+
+	now := c.now()
+
+	// Drop anything that has aged out while we hold the lock. Without this
+	// the map only ever grows: an expired entry is treated as a miss by
+	// load, but nothing removes it, so a team whose page is opened once
+	// keeps a full slice of its channels resident forever.
+	//
+	// The sweep is O(n) in entries, which is affordable because a write
+	// happens roughly once per key per TTL — not per request.
+	for k, e := range c.items {
+		if now.Sub(e.builtAt) >= c.ttl {
+			delete(c.items, k)
+		}
+	}
+
+	c.items[key] = entry{value: value, builtAt: now}
 }
 
 // GetOrBuild returns the cached value for key, calling build to populate it on
