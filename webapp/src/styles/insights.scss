@@ -1503,3 +1503,131 @@ body.insights-product-active {
     font-weight: 600;
     line-height: 24px;
 }
+
+// Channel governance table — the per-channel audit view. Uses the host's
+// theme CSS variables throughout so it follows the user's Mattermost theme
+// in both light and dark rather than hard-coding colors.
+.ChannelGovernanceList {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+
+    .governance-summary {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+    }
+
+    .governance-stat {
+        display: flex;
+        flex-direction: column;
+        padding: 12px 16px;
+        border: 1px solid rgba(var(--center-channel-color-rgb), 0.12);
+        border-radius: 4px;
+
+        &__value {
+            color: var(--center-channel-color);
+            font-size: 24px;
+            font-weight: 600;
+            line-height: 32px;
+        }
+
+        &__label {
+            color: rgba(var(--center-channel-color-rgb), 0.72);
+            font-size: 12px;
+            line-height: 16px;
+        }
+
+        &__sub {
+            color: rgba(var(--center-channel-color-rgb), 0.56);
+            font-size: 11px;
+            line-height: 16px;
+        }
+    }
+
+    .governance-table {
+        width: 100%;
+        border-collapse: collapse;
+
+        th {
+            padding: 8px 12px;
+            border-bottom: 1px solid rgba(var(--center-channel-color-rgb), 0.16);
+            color: rgba(var(--center-channel-color-rgb), 0.72);
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.6px;
+            text-align: left;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 8px 12px;
+            border-bottom: 1px solid rgba(var(--center-channel-color-rgb), 0.08);
+            color: var(--center-channel-color);
+            font-size: 12px;
+            line-height: 16px;
+        }
+    }
+
+    .governance-row {
+        cursor: pointer;
+
+        &:hover {
+            background: rgba(var(--center-channel-color-rgb), 0.04);
+        }
+    }
+
+    .governance-cell {
+        &--name {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 600;
+        }
+
+        &--num {
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        &--purpose {
+            max-width: 320px;
+            color: rgba(var(--center-channel-color-rgb), 0.72);
+        }
+    }
+
+    // "Not set" pairs a dot with the literal word: the dot alone would carry
+    // meaning by color, which fails at low contrast and for CVD readers.
+    .governance-notset {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: rgba(var(--center-channel-color-rgb), 0.56);
+        font-style: italic;
+
+        &__dot {
+            width: 6px;
+            height: 6px;
+            flex: none;
+            border-radius: 50%;
+            background: var(--away-indicator);
+        }
+    }
+
+    .governance-muted {
+        color: rgba(var(--center-channel-color-rgb), 0.56);
+    }
+
+    .governance-empty,
+    .governance-loading,
+    .governance-error {
+        padding: 24px;
+        color: rgba(var(--center-channel-color-rgb), 0.72);
+        text-align: center;
+    }
+
+    .governance-error {
+        color: var(--error-text);
+    }
+}

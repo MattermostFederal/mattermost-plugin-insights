@@ -1,4 +1,5 @@
 import React, {useCallback, useEffect, useState} from 'react';
+import {FormattedMessage} from 'react-intl';
 import {useSelector} from 'react-redux';
 
 import {ENABLE_PERSONAL_INSIGHTS} from '../../config';
@@ -19,6 +20,7 @@ import {ScopeSelect} from '../Controls/ScopeSelect';
 import {TimeRangeSelect} from '../Controls/TimeRangeSelect';
 import type {InsightsWidgetType} from '../Modal/InsightsModal';
 import {InsightsModal} from '../Modal/InsightsModal';
+import {ChannelGovernanceTable} from '../Modal/Tables/ChannelGovernanceTable';
 
 // With ENABLE_PERSONAL_INSIGHTS off there is only one scope, so the URL's
 // `scope` param is ignored rather than honored-then-overridden.
@@ -227,6 +229,27 @@ export const InsightsPage: React.FC = () => {
                     );
                 })}
             </div>
+            {/*
+              * Channel governance sits on the page rather than behind a card,
+              * because its value is the full list — the long tail of quiet
+              * channels — not a top-N summary that a card could show.
+              * Team-scoped only; there is no per-user variant.
+              */}
+            {scope === 'team' && teamId ? (
+                <section className='insights-page__governance'>
+                    <h2 className='insights-page__section-title'>
+                        <FormattedMessage
+                            id='insights.governance.title'
+                            defaultMessage='Channel governance'
+                        />
+                    </h2>
+                    <ChannelGovernanceTable
+                        scope={scope}
+                        timeRange={range}
+                        teamId={teamId}
+                    />
+                </section>
+            ) : null}
             {modal ? (
                 <InsightsModal
                     show={true}

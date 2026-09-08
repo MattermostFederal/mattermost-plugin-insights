@@ -1,4 +1,5 @@
 import type {
+    ChannelGovernanceResponse,
     NewTeamMembersResponse,
     TimeRange,
     TopBoardsResponse,
@@ -50,6 +51,12 @@ export const Client = {
     },
     getTopChannelsForTeam(teamId: string, timeRange: TimeRange, opts: PageOpts = {}) {
         return get<TopChannelsResponse>(`/teams/${teamId}/top/channels${buildQuery({time_range: timeRange, page: opts.page, per_page: opts.perPage})}`);
+    },
+
+    // Channel governance: every channel in the team with its activity and
+    // metadata, plus team-wide labelling coverage. Team scope only.
+    getChannelGovernance(teamId: string, timeRange: TimeRange, opts: PageOpts = {}) {
+        return get<ChannelGovernanceResponse>(`/teams/${teamId}/channel_activity${buildQuery({time_range: timeRange, page: opts.page, per_page: opts.perPage})}`);
     },
     getMyTopChannels(timeRange: TimeRange, opts: PageOpts & {teamId?: string} = {}) {
         return get<TopChannelsResponse>(`/users/me/top/channels${buildQuery({time_range: timeRange, page: opts.page, per_page: opts.perPage, team_id: opts.teamId})}`);

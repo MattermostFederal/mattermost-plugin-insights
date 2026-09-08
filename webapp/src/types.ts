@@ -22,6 +22,34 @@ export interface TopChannel {
     message_count: number;
 }
 
+// ChannelActivity backs the channel-governance table. Unlike TopChannel it
+// carries the metadata columns and is returned for every channel in the team,
+// including ones with no activity — a channel with many members and zero
+// posts is what the table exists to surface.
+export interface ChannelActivity {
+    id: string;
+    type: string;
+    display_name: string;
+    name: string;
+    purpose: string;
+    header: string;
+    create_at: number;
+    last_post_at: number;
+    last_post_in_window: number;
+    message_count: number;
+    active_posters: number;
+    member_count: number;
+}
+
+// Summary counts describe the whole team, not the current page — the server
+// computes them because the client only ever holds one page.
+export interface ChannelGovernanceSummary {
+    total_channels: number;
+    active_channels: number;
+    with_purpose: number;
+    with_header: number;
+}
+
 export interface TopThread {
     channel_id: string;
     channel_display_name: string;
@@ -116,3 +144,6 @@ export type NewTeamMembersResponse = PaginatedResponse<NewTeamMember> & {
 };
 export type TopPlaybooksResponse = PaginatedResponse<TopPlaybook>;
 export type TopBoardsResponse = PaginatedResponse<TopBoard>;
+export type ChannelGovernanceResponse = PaginatedResponse<ChannelActivity> & {
+    summary: ChannelGovernanceSummary;
+};
