@@ -46,6 +46,7 @@ func proLicense() *model.License {
 }
 
 func TestTopBoardsForTeam_happyPath(t *testing.T) {
+	skipIfBoardsAndPlaybooksDisabled(t)
 	api, _, store, _ := newBoardsAPI()
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/teams/team1/top/boards?time_range=7_day", nil)
@@ -86,6 +87,7 @@ func TestTopBoardsForTeam_rejectsWithoutLicense(t *testing.T) {
 }
 
 func TestTopBoardsForUser_happyPath(t *testing.T) {
+	skipIfPersonalInsightsDisabled(t)
 	api, _, store, _ := newBoardsAPI()
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/users/me/top/boards?time_range=7_day&team_id=team1", nil)
@@ -106,6 +108,7 @@ func TestTopBoardsForUser_happyPath(t *testing.T) {
 }
 
 func TestTopBoardsForUser_rejectsMissingTeamId(t *testing.T) {
+	skipIfPersonalInsightsDisabled(t)
 	api, _, _, _ := newBoardsAPI()
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/users/me/top/boards?time_range=7_day", nil)

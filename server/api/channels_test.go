@@ -22,6 +22,7 @@ func decodeChannels(t *testing.T, w *httptest.ResponseRecorder) *insights.TopCha
 }
 
 func TestAPI_TopChannelsForUser_unauthenticated(t *testing.T) {
+	skipIfPersonalInsightsDisabled(t)
 	api := New(&apitest.AuthStub{}, &apitest.DirectoryStub{}, &apitest.StoreStub{})
 	w := httptest.NewRecorder()
 	api.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/api/v1/users/me/top/channels?time_range=today", nil))
@@ -31,6 +32,7 @@ func TestAPI_TopChannelsForUser_unauthenticated(t *testing.T) {
 }
 
 func TestAPI_TopChannelsForUser_returnsItems(t *testing.T) {
+	skipIfPersonalInsightsDisabled(t)
 	auth := &apitest.AuthStub{Users: map[string]*model.User{testUserID: newRegularUser(testUserID)}}
 	store := &apitest.StoreStub{
 		TopChannelsForUserResult: &insights.TopChannelList{
@@ -78,6 +80,7 @@ func TestAPI_TopChannelsForTeam_notMember(t *testing.T) {
 }
 
 func TestAPI_TopChannelsForUser_attachesChartData(t *testing.T) {
+	skipIfPersonalInsightsDisabled(t)
 	auth := &apitest.AuthStub{Users: map[string]*model.User{testUserID: newRegularUser(testUserID)}}
 	store := &apitest.StoreStub{
 		TopChannelsForUserResult: &insights.TopChannelList{

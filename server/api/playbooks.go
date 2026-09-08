@@ -14,7 +14,18 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/mattermost/mattermost/server/public/model"
+
+	"github.com/MattermostFederal/mattermost-plugin-insights/server/insights"
 )
+
+// unavailablePlaybookList mirrors unavailableBoardList (boards.go) for the
+// Top Playbooks routes.
+func unavailablePlaybookList() *insights.TopPlaybookList {
+	return &insights.TopPlaybookList{
+		ListData: insights.ListData{NotAvailable: true},
+		Items:    []*insights.TopPlaybook{},
+	}
+}
 
 // handleTopPlaybooksForTeam handles
 // GET /plugins/insights/api/v1/teams/{team_id}/top/playbooks
@@ -40,6 +51,11 @@ func (a *API) handleTopPlaybooksForTeam(w http.ResponseWriter, r *http.Request, 
 	}
 	since, ok := computeSinceMillis(w, params.timeRange, user)
 	if !ok {
+		return
+	}
+
+	if !EnableBoardsAndPlaybooks {
+		writeJSON(w, http.StatusOK, unavailablePlaybookList())
 		return
 	}
 
@@ -77,6 +93,11 @@ func (a *API) handleTopPlaybooksForUser(w http.ResponseWriter, r *http.Request, 
 	}
 	since, ok := computeSinceMillis(w, params.timeRange, user)
 	if !ok {
+		return
+	}
+
+	if !EnableBoardsAndPlaybooks {
+		writeJSON(w, http.StatusOK, unavailablePlaybookList())
 		return
 	}
 

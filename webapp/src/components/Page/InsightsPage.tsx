@@ -1,6 +1,7 @@
 import React, {useCallback, useEffect, useState} from 'react';
 import {useSelector} from 'react-redux';
 
+import {ENABLE_PERSONAL_INSIGHTS} from '../../config';
 import {useEffectiveScope} from '../../hooks/useLicenseChecks';
 import {getCurrentTeamId} from '../../redux/mmSelectors';
 import type {Scope, TimeRange} from '../../types';
@@ -19,12 +20,19 @@ import {TimeRangeSelect} from '../Controls/TimeRangeSelect';
 import type {InsightsWidgetType} from '../Modal/InsightsModal';
 import {InsightsModal} from '../Modal/InsightsModal';
 
+// With ENABLE_PERSONAL_INSIGHTS off there is only one scope, so the URL's
+// `scope` param is ignored rather than honored-then-overridden.
+const defaultScope: Scope = ENABLE_PERSONAL_INSIGHTS ? 'my' : 'team';
+
 function readQueryState(): {scope: Scope; range: TimeRange} {
     if (typeof window === 'undefined') {
-        return {scope: 'my', range: '7_day'};
+        return {scope: defaultScope, range: '7_day'};
     }
     const params = new URLSearchParams(window.location.search);
-    const scope = params.get('scope') === 'team' ? 'team' : 'my';
+    let scope: Scope = 'team';
+    if (ENABLE_PERSONAL_INSIGHTS && params.get('scope') !== 'team') {
+        scope = 'my';
+    }
     const rawRange = params.get('range');
     const range: TimeRange = (rawRange === 'today' || rawRange === '28_day') ? rawRange : '7_day';
     return {scope, range};
@@ -69,7 +77,12 @@ export const InsightsPage: React.FC = () => {
     // License gate: deprecated `useGetFilterType` forces MY scope on
     // starter-free / non-enterprise. Honor that even when the URL or
     // explicit user click set scope=team.
-    const scope = useEffectiveScope(requestedScope);
+    //
+    // With personal insights disabled that fallback has nowhere to land — the
+    // My routes are unregistered — so scope is pinned to team and those
+    // servers get an empty page. See ENABLE_PERSONAL_INSIGHTS.
+    const licensedScope = useEffectiveScope(requestedScope);
+    const scope: Scope = ENABLE_PERSONAL_INSIGHTS ? licensedScope : 'team';
 
     const teamId = useSelector(getCurrentTeamId);
 
@@ -106,10 +119,12 @@ export const InsightsPage: React.FC = () => {
     return (
         <main className='insights-page'>
             <header className='insights-page__controls'>
-                <ScopeSelect
-                    value={scope}
-                    onChange={handleScopeChange}
-                />
+                {ENABLE_PERSONAL_INSIGHTS && (
+                    <ScopeSelect
+                        value={scope}
+                        onChange={handleScopeChange}
+                    />
+                )}
                 <TimeRangeSelect
                     value={range}
                     onChange={handleRangeChange}

@@ -21,6 +21,11 @@ type Opts struct {
 
 type ListData struct {
 	HasNext bool `json:"has_next"`
+
+	// NotAvailable marks an insight that is switched off rather than empty,
+	// so the webapp can tell "this card is disabled" apart from "this card
+	// found no data". Omitted from the payload unless true.
+	NotAvailable bool `json:"not_available,omitempty"`
 }
 
 // Top Reactions

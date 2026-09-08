@@ -85,6 +85,28 @@ type API struct {
 	router    *mux.Router
 }
 
+// EnablePersonalInsights controls whether the user-scoped ("My") insight
+// routes are served. Personal insights are disabled while the plugin moves
+// team insights onto a once-daily server-wide snapshot: the My-scope queries
+// run per-request and carry the performance problems catalogued in
+// INSIGHTS_REFERENCE.md §3, and there is no per-user equivalent of the
+// snapshot.
+//
+// Consequence: team routes require a Professional+ license, so with this
+// off the plugin serves nothing on unlicensed, Starter, or non-enterprise
+// builds. That is accepted for now and expected to change.
+const EnablePersonalInsights = false
+
+// EnableBoardsAndPlaybooks controls whether the Top Boards and Top Playbooks
+// insights run their queries. Both are stubbed off: they read tables owned by
+// other plugins (focalboard_*, IR_*), which 500 outright when that plugin is
+// absent, and neither is worth carrying onto the daily snapshot.
+//
+// The routes stay registered and keep their auth gates so the gates matrix
+// stays uniform; the handlers return an empty list marked NotAvailable
+// instead of querying.
+const EnableBoardsAndPlaybooks = false
+
 // New builds the API and wires every route.
 func New(auth AuthProvider, directory Directory, st Storer) *API {
 	return NewWithTelemetry(auth, nil, directory, st, noopTelemetry{})
@@ -114,13 +136,19 @@ func NewWithTelemetry(auth AuthProvider, _ /*reserved*/ any, directory Directory
 	v1.HandleFunc("/teams/{team_id}/top/playbooks", a.requireUser(a.handleTopPlaybooksForTeam)).Methods(http.MethodGet)
 
 	// User-scoped insights (no license requirement).
-	v1.HandleFunc("/users/me/top/reactions", a.requireUser(a.handleTopReactionsForUser)).Methods(http.MethodGet)
-	v1.HandleFunc("/users/me/top/channels", a.requireUser(a.handleTopChannelsForUser)).Methods(http.MethodGet)
-	v1.HandleFunc("/users/me/top/threads", a.requireUser(a.handleTopThreadsForUser)).Methods(http.MethodGet)
-	v1.HandleFunc("/users/me/top/dms", a.requireUser(a.handleTopDMsForUser)).Methods(http.MethodGet)
-	v1.HandleFunc("/users/me/top/inactive_channels", a.requireUser(a.handleTopInactiveChannelsForUser)).Methods(http.MethodGet)
-	v1.HandleFunc("/users/me/top/boards", a.requireUser(a.handleTopBoardsForUser)).Methods(http.MethodGet)
-	v1.HandleFunc("/users/me/top/playbooks", a.requireUser(a.handleTopPlaybooksForUser)).Methods(http.MethodGet)
+	//
+	// Disabled — see EnablePersonalInsights. The handlers and their store
+	// queries are intentionally left in the tree so re-enabling is a
+	// one-line change while the product decision is still open.
+	if EnablePersonalInsights {
+		v1.HandleFunc("/users/me/top/reactions", a.requireUser(a.handleTopReactionsForUser)).Methods(http.MethodGet)
+		v1.HandleFunc("/users/me/top/channels", a.requireUser(a.handleTopChannelsForUser)).Methods(http.MethodGet)
+		v1.HandleFunc("/users/me/top/threads", a.requireUser(a.handleTopThreadsForUser)).Methods(http.MethodGet)
+		v1.HandleFunc("/users/me/top/dms", a.requireUser(a.handleTopDMsForUser)).Methods(http.MethodGet)
+		v1.HandleFunc("/users/me/top/inactive_channels", a.requireUser(a.handleTopInactiveChannelsForUser)).Methods(http.MethodGet)
+		v1.HandleFunc("/users/me/top/boards", a.requireUser(a.handleTopBoardsForUser)).Methods(http.MethodGet)
+		v1.HandleFunc("/users/me/top/playbooks", a.requireUser(a.handleTopPlaybooksForUser)).Methods(http.MethodGet)
+	}
 
 	// Telemetry — receives `trackEvent('insights', '<event>', props?)`
 	// posts from the webapp.

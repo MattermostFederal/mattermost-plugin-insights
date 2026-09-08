@@ -27,6 +27,7 @@ const (
 )
 
 func TestAPI_TopThreadsForUser_unauthenticated(t *testing.T) {
+	skipIfPersonalInsightsDisabled(t)
 	api := New(&apitest.AuthStub{}, &apitest.DirectoryStub{}, &apitest.StoreStub{})
 	w := httptest.NewRecorder()
 	api.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/api/v1/users/me/top/threads?time_range=today", nil))
@@ -36,6 +37,7 @@ func TestAPI_TopThreadsForUser_unauthenticated(t *testing.T) {
 }
 
 func TestAPI_TopThreadsForUser_guest(t *testing.T) {
+	skipIfPersonalInsightsDisabled(t)
 	auth := &apitest.AuthStub{Users: map[string]*model.User{testGuestID: newGuestUser(testGuestID)}}
 	api := New(auth, &apitest.DirectoryStub{}, &apitest.StoreStub{})
 	w := httptest.NewRecorder()
@@ -46,6 +48,7 @@ func TestAPI_TopThreadsForUser_guest(t *testing.T) {
 }
 
 func TestAPI_TopThreadsForUser_hydratesUserAndPost(t *testing.T) {
+	skipIfPersonalInsightsDisabled(t)
 	auth := &apitest.AuthStub{Users: map[string]*model.User{testUserID: newRegularUser(testUserID)}}
 	directory := &apitest.DirectoryStub{
 		Users: map[string]*model.User{

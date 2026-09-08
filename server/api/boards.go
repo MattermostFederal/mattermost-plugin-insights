@@ -16,7 +16,19 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/mattermost/mattermost/server/public/model"
+
+	"github.com/MattermostFederal/mattermost-plugin-insights/server/insights"
 )
+
+// unavailableBoardList is the response served while EnableBoardsAndPlaybooks
+// is off: an empty list flagged so the webapp can distinguish "switched off"
+// from "no boards were active".
+func unavailableBoardList() *insights.TopBoardList {
+	return &insights.TopBoardList{
+		ListData: insights.ListData{NotAvailable: true},
+		Items:    []*insights.TopBoard{},
+	}
+}
 
 // handleTopBoardsForTeam handles
 // GET /plugins/insights/api/v1/teams/{team_id}/top/boards
@@ -42,6 +54,11 @@ func (a *API) handleTopBoardsForTeam(w http.ResponseWriter, r *http.Request, use
 	}
 	since, ok := computeSinceMillis(w, params.timeRange, user)
 	if !ok {
+		return
+	}
+
+	if !EnableBoardsAndPlaybooks {
+		writeJSON(w, http.StatusOK, unavailableBoardList())
 		return
 	}
 
@@ -85,6 +102,11 @@ func (a *API) handleTopBoardsForUser(w http.ResponseWriter, r *http.Request, use
 	}
 	since, ok := computeSinceMillis(w, params.timeRange, user)
 	if !ok {
+		return
+	}
+
+	if !EnableBoardsAndPlaybooks {
+		writeJSON(w, http.StatusOK, unavailableBoardList())
 		return
 	}
 

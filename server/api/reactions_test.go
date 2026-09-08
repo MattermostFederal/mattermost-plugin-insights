@@ -52,6 +52,7 @@ func decodeReactions(t *testing.T, w *httptest.ResponseRecorder) *insights.TopRe
 }
 
 func TestAPI_TopReactionsForUser_unauthenticated(t *testing.T) {
+	skipIfPersonalInsightsDisabled(t)
 	api := New(&apitest.AuthStub{}, &apitest.DirectoryStub{}, &apitest.StoreStub{})
 	w := httptest.NewRecorder()
 	api.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/api/v1/users/me/top/reactions?time_range=today", nil))
@@ -61,6 +62,7 @@ func TestAPI_TopReactionsForUser_unauthenticated(t *testing.T) {
 }
 
 func TestAPI_TopReactionsForUser_guest(t *testing.T) {
+	skipIfPersonalInsightsDisabled(t)
 	auth := &apitest.AuthStub{Users: map[string]*model.User{testGuestID: newGuestUser(testGuestID)}}
 	api := New(auth, &apitest.DirectoryStub{}, &apitest.StoreStub{})
 	w := httptest.NewRecorder()
@@ -71,6 +73,7 @@ func TestAPI_TopReactionsForUser_guest(t *testing.T) {
 }
 
 func TestAPI_TopReactionsForUser_invalidTimeRange(t *testing.T) {
+	skipIfPersonalInsightsDisabled(t)
 	auth := &apitest.AuthStub{Users: map[string]*model.User{testUserID: newRegularUser(testUserID)}}
 	api := New(auth, &apitest.DirectoryStub{}, &apitest.StoreStub{})
 	w := httptest.NewRecorder()
@@ -81,6 +84,7 @@ func TestAPI_TopReactionsForUser_invalidTimeRange(t *testing.T) {
 }
 
 func TestAPI_TopReactionsForUser_returnsItems(t *testing.T) {
+	skipIfPersonalInsightsDisabled(t)
 	auth := &apitest.AuthStub{Users: map[string]*model.User{testUserID: newRegularUser(testUserID)}}
 	store := &apitest.StoreStub{
 		TopReactionsForUserResult: &insights.TopReactionList{
@@ -111,6 +115,7 @@ func TestAPI_TopReactionsForUser_returnsItems(t *testing.T) {
 }
 
 func TestAPI_TopReactionsForUser_passesTeamFilter(t *testing.T) {
+	skipIfPersonalInsightsDisabled(t)
 	auth := &apitest.AuthStub{Users: map[string]*model.User{testUserID: newRegularUser(testUserID)}}
 	store := &apitest.StoreStub{TopReactionsForUserResult: &insights.TopReactionList{}}
 	api := New(auth, &apitest.DirectoryStub{}, store)

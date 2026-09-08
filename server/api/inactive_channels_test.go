@@ -22,6 +22,7 @@ func decodeInactiveChannels(t *testing.T, w *httptest.ResponseRecorder) *insight
 }
 
 func TestAPI_TopInactiveChannelsForUser_unauthenticated(t *testing.T) {
+	skipIfPersonalInsightsDisabled(t)
 	api := New(&apitest.AuthStub{}, &apitest.DirectoryStub{}, &apitest.StoreStub{})
 	w := httptest.NewRecorder()
 	api.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/api/v1/users/me/top/inactive_channels?time_range=today", nil))
@@ -31,6 +32,7 @@ func TestAPI_TopInactiveChannelsForUser_unauthenticated(t *testing.T) {
 }
 
 func TestAPI_TopInactiveChannelsForUser_returnsItems(t *testing.T) {
+	skipIfPersonalInsightsDisabled(t)
 	auth := &apitest.AuthStub{Users: map[string]*model.User{testUserID: newRegularUser(testUserID)}}
 	store := &apitest.StoreStub{
 		TopInactiveChannelsForUserResult: &insights.TopInactiveChannelList{

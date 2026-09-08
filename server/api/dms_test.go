@@ -22,6 +22,7 @@ func decodeDMs(t *testing.T, w *httptest.ResponseRecorder) *insights.TopDMList {
 }
 
 func TestAPI_TopDMsForUser_unauthenticated(t *testing.T) {
+	skipIfPersonalInsightsDisabled(t)
 	api := New(&apitest.AuthStub{}, &apitest.DirectoryStub{}, &apitest.StoreStub{})
 	w := httptest.NewRecorder()
 	api.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/api/v1/users/me/top/dms?time_range=today", nil))
@@ -31,6 +32,7 @@ func TestAPI_TopDMsForUser_unauthenticated(t *testing.T) {
 }
 
 func TestAPI_TopDMsForUser_guest(t *testing.T) {
+	skipIfPersonalInsightsDisabled(t)
 	auth := &apitest.AuthStub{Users: map[string]*model.User{testGuestID: newGuestUser(testGuestID)}}
 	api := New(auth, &apitest.DirectoryStub{}, &apitest.StoreStub{})
 	w := httptest.NewRecorder()
@@ -41,6 +43,7 @@ func TestAPI_TopDMsForUser_guest(t *testing.T) {
 }
 
 func TestAPI_TopDMsForUser_dividesMessageCountByTwoAndHydrates(t *testing.T) {
+	skipIfPersonalInsightsDisabled(t)
 	const partnerID = "partner1aaaaaaaaaaaaaaaaaa"
 
 	auth := &apitest.AuthStub{Users: map[string]*model.User{testUserID: newRegularUser(testUserID)}}
