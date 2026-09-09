@@ -77,14 +77,18 @@ CREATE TABLE threadmemberships (
     PRIMARY KEY (postid, userid)
 );
 
+-- The optional profile columns are deliberately nullable, matching production
+-- Mattermost. They were NOT NULL here, which made the harness stricter than
+-- the real schema and hid a 500: a single user with a NULL position or
+-- picture timestamp failed the whole New Team Members query.
 CREATE TABLE users (
     id                  varchar(26) PRIMARY KEY,
     username            varchar(64) NOT NULL DEFAULT '',
-    firstname           varchar(64) NOT NULL DEFAULT '',
-    lastname            varchar(64) NOT NULL DEFAULT '',
-    nickname            varchar(64) NOT NULL DEFAULT '',
-    position            varchar(128) NOT NULL DEFAULT '',
-    lastpictureupdate   bigint      NOT NULL DEFAULT 0,
+    firstname           varchar(64) DEFAULT '',
+    lastname            varchar(64) DEFAULT '',
+    nickname            varchar(64) DEFAULT '',
+    position            varchar(128) DEFAULT '',
+    lastpictureupdate   bigint      DEFAULT 0,
     deleteat            bigint      NOT NULL DEFAULT 0
 );
 

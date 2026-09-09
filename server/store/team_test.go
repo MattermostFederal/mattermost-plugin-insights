@@ -231,3 +231,38 @@ func TestStore_NewTeamMembersSince_excludesJoinsAfterTheWindow(t *testing.T) {
 		t.Error("member who joined before the window start was included")
 	}
 }
+
+// Regression: position, nickname, lastpictureupdate, firstname and lastname
+// are all nullable in the Mattermost schema. A NULL reaching a non-pointer
+// scan target used to fail the whole query, so one imported user with no
+// profile picture would 500 the insight for the entire team.
+func TestStore_NewTeamMembersSince_toleratesNullUserColumns(t *testing.T) {
+	db := storetest.NewDB(t)
+	s := NewFromDB(db)
+
+	now := nowMillis()
+	since := now - 24*60*60*1000
+
+	mustExec(t, db,
+		`INSERT INTO users (id, username, firstname, lastname, nickname, position, lastpictureupdate, deleteat)
+		 VALUES ($1, $2, NULL, NULL, NULL, NULL, NULL, 0)`,
+		"unullaaaaaaaaaaaaaaaaaaaaa", "nullish")
+	seedTeamMember(t, db, testTeamID, "unullaaaaaaaaaaaaaaaaaaaaa", now, 0)
+
+	for _, showFullName := range []bool{true, false} {
+		got, err := s.NewTeamMembersSince(context.Background(), testTeamID, windowFrom(since), 0, 10, showFullName)
+		if err != nil {
+			t.Fatalf("showFullName=%v: %v", showFullName, err)
+		}
+		if len(got.Items) != 1 {
+			t.Fatalf("showFullName=%v: got %d items; want 1", showFullName, len(got.Items))
+		}
+		item := got.Items[0]
+		if item.Username != "nullish" {
+			t.Errorf("Username = %q; want nullish", item.Username)
+		}
+		if item.Position != "" || item.Nickname != "" || item.LastPictureUpdate != 0 {
+			t.Errorf("NULLs should read as zero values; got %+v", item)
+		}
+	}
+}

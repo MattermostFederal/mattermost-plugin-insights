@@ -49,16 +49,22 @@ func (s *Store) NewTeamMembersSince(ctx context.Context, teamID string, w insigh
 		return nil, scanErr
 	}
 
+	// Every optional user column is COALESCEd. They are all nullable in the
+	// Mattermost schema, and a NULL reaching a non-pointer scan target fails
+	// the whole request with a 500 — one legacy or imported user with no
+	// profile picture would take the insight down for the entire team.
 	cols := []string{
 		"users.id",
 		"users.username",
-		"users.position",
-		"users.lastpictureupdate",
+		"COALESCE(users.position, '') AS position",
+		"COALESCE(users.lastpictureupdate, 0) AS lastpictureupdate",
 		"teammembers.createat",
-		"users.nickname",
+		"COALESCE(users.nickname, '') AS nickname",
 	}
 	if showFullName {
-		cols = append(cols, "users.firstname", "users.lastname")
+		cols = append(cols,
+			"COALESCE(users.firstname, '') AS firstname",
+			"COALESCE(users.lastname, '') AS lastname")
 	}
 	listBuilder := newTeamMembersSelect(s.Builder, teamID, w, cols...).
 		OrderBy("teammembers.createat DESC").
