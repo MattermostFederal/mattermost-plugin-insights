@@ -98,11 +98,6 @@ const NewMembersTableComponent: React.FC<TableProps> = ({timeRange, teamId}) => 
                   />,
             field: 'joined',
         },
-        {
-            name: '',
-            field: 'action',
-            width: 0.4,
-        },
     ], []);
 
     const rows = useMemo<Row[]>(() => table.items.map((member) => ({
@@ -118,19 +113,17 @@ const NewMembersTableComponent: React.FC<TableProps> = ({timeRange, teamId}) => 
                         <span className='cell-text'>{displayName(member)}</span>
                         <span className='new-members-cell__username'>{`@${member.username}`}</span>
                     </div>
+                    <span className='new-members-cell__hello'>
+                        <WaveEmoji/>
+                        <FormattedMessage
+                            id='insights.newMembers.sayHello'
+                            defaultMessage='Say hello'
+                        />
+                    </span>
                 </div>
             ),
             position: <span className='cell-text'>{member.position || ''}</span>,
             joined: <span className='cell-text'>{relativeTime(member.create_at)}</span>,
-            action: (
-                <span className='new-members-cell__hello'>
-                    <WaveEmoji/>
-                    <FormattedMessage
-                        id='insights.newMembers.sayHello'
-                        defaultMessage='Say hello'
-                    />
-                </span>
-            ),
         },
         onClick: teamName ? () => {
             trackInsightsEvent('open_new_members_from_new_members_modal');

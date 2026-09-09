@@ -1841,10 +1841,41 @@ body.insights-product-active {
     }
 }
 
-// New Team Members modal rows. The card that used to show avatars and the
-// "Say hello" wave is gone, so the modal carries them — it is now the only
-// place you can put a face to a name.
-.NewMembersTable {
+// New Team Members modal. Restyled to match the governance table rather than
+// the deprecated DataGrid look: uppercase letter-spaced headers, hairline row
+// rules, no heavy zebra fill. The two surfaces sit one click apart, so they
+// should read as the same product.
+//
+// The card that used to show avatars and the "Say hello" wave is gone, so
+// this modal carries them — it is the only place left to put a face to a
+// name.
+.InsightsTable.NewMembersTable {
+    .DataGrid_header {
+        padding: 8px 0;
+        border-bottom: 1px solid rgba(var(--center-channel-color-rgb), 0.16);
+        background-color: transparent;
+        color: rgba(var(--center-channel-color-rgb), 0.72);
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.6px;
+        text-transform: uppercase;
+    }
+
+    .DataGrid_row {
+        min-height: 0;
+        padding: 6px 0;
+        border-bottom: 1px solid rgba(var(--center-channel-color-rgb), 0.08);
+        background: transparent;
+
+        &:hover {
+            background: rgba(var(--center-channel-color-rgb), 0.04);
+        }
+    }
+
+    .cell-text {
+        font-size: 13px;
+    }
+
     .new-members-cell {
         display: flex;
         min-width: 0;
@@ -1865,10 +1896,13 @@ body.insights-product-active {
             white-space: nowrap;
         }
 
-        // Revealed on row hover, the way the card's inline action behaved.
+        // Lives inside the name cell rather than its own column: a fourth
+        // column pushed the grid past the modal width, and the DataGrid's
+        // truncation marker then showed through as a stray ellipsis.
         &__hello {
             display: inline-flex;
             align-items: center;
+            margin-left: 10px;
             color: var(--link-color);
             font-size: 12px;
             gap: 5px;
@@ -1881,5 +1915,11 @@ body.insights-product-active {
     .DataGrid_row:hover .new-members-cell__hello,
     .DataGrid_row:focus-within .new-members-cell__hello {
         opacity: 1;
+    }
+
+    .DataGrid_footer {
+        border-top: 1px solid rgba(var(--center-channel-color-rgb), 0.08);
+        color: rgba(var(--center-channel-color-rgb), 0.72);
+        font-size: 12px;
     }
 }
