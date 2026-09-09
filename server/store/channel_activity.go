@@ -27,6 +27,24 @@ import (
 // MemberCount comes from a pre-aggregated derived table instead of a second
 // LEFT JOIN onto ChannelMembers, which would multiply the Posts rows by the
 // member count and inflate every aggregate.
+//
+// LastPostAt is computed here rather than read from the denormalized
+// Channels.LastPostAt column. That column is free but wrong for this purpose:
+// it advances on system messages (a join or leave) and on webhook traffic, so
+// a channel nobody has spoken in for months reports activity the moment
+// somebody joins it — precisely the case the governance table exists to
+// surface. This derived table applies the same filters as MessageCount, so
+// "last post" means the last human message.
+//
+// The lookback is bounded by $3 to keep it from scanning the whole Posts
+// history; channels with nothing newer report 0, which the UI renders as
+// "Never".
+// lastPostLookbackMillis bounds how far back the "last human message" lookup
+// scans, measured from the window start. Two years is far enough that
+// anything older is indistinguishable from dead for governance purposes, and
+// bounding it keeps the query off the full Posts history.
+const lastPostLookbackMillis int64 = 2 * 365 * 24 * 60 * 60 * 1000
+
 const channelActivityForTeamSQL = `
 SELECT
 	Channels.Id,
@@ -36,7 +54,7 @@ SELECT
 	Channels.Purpose,
 	Channels.Header,
 	Channels.CreateAt,
-	Channels.LastPostAt,
+	COALESCE(LastReal.LastRealPostAt, 0) AS LastPostAt,
 	COALESCE(max(Posts.CreateAt), 0) AS LastPostInWindow,
 	count(Posts.Id) AS MessageCount,
 	count(DISTINCT Posts.UserId) AS ActivePosters,
@@ -59,13 +77,28 @@ LEFT JOIN (
 		AND MemberChannels.TeamId = $1
 	GROUP BY ChannelMembers.ChannelId
 ) AS Members ON Members.ChannelId = Channels.Id
+LEFT JOIN (
+	SELECT Posts.ChannelId, max(Posts.CreateAt) AS LastRealPostAt
+	FROM Posts
+	JOIN Channels AS PostChannels
+		ON PostChannels.Id = Posts.ChannelId
+		AND PostChannels.TeamId = $1
+	WHERE Posts.DeleteAt = 0
+		AND Posts.CreateAt > $3
+		AND Posts.Type = ''
+		AND (Posts.Props ->> 'from_bot' IS NULL OR Posts.Props ->> 'from_bot' = 'false')
+		AND (Posts.Props ->> 'from_webhook' IS NULL OR Posts.Props ->> 'from_webhook' = 'false')
+		AND (Posts.Props ->> 'from_oauth_app' IS NULL OR Posts.Props ->> 'from_oauth_app' = 'false')
+		AND (Posts.Props ->> 'from_plugin' IS NULL OR Posts.Props ->> 'from_plugin' = 'false')
+	GROUP BY Posts.ChannelId
+) AS LastReal ON LastReal.ChannelId = Channels.Id
 WHERE Channels.TeamId = $1
 	AND Channels.DeleteAt = 0
 	AND (Channels.Type = 'O' OR Channels.Type = 'P')
 GROUP BY
 	Channels.Id, Channels.Type, Channels.DisplayName, Channels.Name,
 	Channels.Purpose, Channels.Header, Channels.CreateAt,
-	Channels.LastPostAt, Members.MemberCount
+	LastReal.LastRealPostAt, Members.MemberCount
 ORDER BY MessageCount DESC, Channels.Name ASC
 `
 
@@ -76,7 +109,8 @@ ORDER BY MessageCount DESC, Channels.Name ASC
 // Results are unpaginated by design: the caller caches the whole slice and
 // filters, sorts, and pages it in memory.
 func (s *Store) ChannelActivityForTeam(ctx context.Context, teamID string, since int64) ([]*insights.ChannelActivity, error) {
-	rows, err := s.replica.QueryContext(ctx, channelActivityForTeamSQL, teamID, since)
+	lastPostLookback := since - lastPostLookbackMillis
+	rows, err := s.replica.QueryContext(ctx, channelActivityForTeamSQL, teamID, since, lastPostLookback)
 	if err != nil {
 		return nil, err
 	}

@@ -228,6 +228,55 @@ func TestStore_ChannelActivityForTeam_separatesAllTimeFromWindowedLastPost(t *te
 	}
 }
 
+// Regression: LastPostAt used to be read from the denormalized
+// Channels.LastPostAt column, which advances on system messages and webhook
+// traffic. A dead channel then reported activity the moment somebody joined
+// it — exactly the case the governance table exists to catch.
+func TestStore_ChannelActivityForTeam_lastPostIgnoresSystemAndBotPosts(t *testing.T) {
+	db := storetest.NewDB(t)
+	since := seedChannelActivityFixture(t, db)
+	now := nowMillis()
+	postIDs := postIDGen('z')
+
+	// A join message and a webhook post, both newer than any real message.
+	mustExec(t, db,
+		`INSERT INTO posts (id, userid, channelid, createat, deleteat, type)
+		 VALUES ($1, $2, $3, $4, 0, 'system_join_channel')`,
+		postIDs(), testUser2ID, staleChID, now)
+	mustExec(t, db,
+		`INSERT INTO posts (id, userid, channelid, createat, deleteat, type, props)
+		 VALUES ($1, $2, $3, $4, 0, '', '{"from_webhook":"true"}'::jsonb)`,
+		postIDs(), testUser2ID, staleChID, now)
+
+	// Channels.LastPostAt is what the app would have advanced; the query must
+	// not trust it.
+	mustExec(t, db, `UPDATE channels SET lastpostat = $1 WHERE id = $2`, now, staleChID)
+
+	got := activityByID(t, db, since)
+	stale := got[staleChID]
+
+	if stale.LastPostAt >= since {
+		t.Errorf("LastPostAt = %d; want the real message's timestamp before since=%d, not a join or webhook post", stale.LastPostAt, since)
+	}
+	if stale.MessageCount != 0 {
+		t.Errorf("MessageCount = %d; want 0", stale.MessageCount)
+	}
+}
+
+// A channel that has never carried a human message reports 0 so the UI can
+// render "Never" rather than a date.
+func TestStore_ChannelActivityForTeam_lastPostIsZeroWhenNeverPosted(t *testing.T) {
+	db := storetest.NewDB(t)
+	since := seedChannelActivityFixture(t, db)
+
+	mustExec(t, db, `UPDATE channels SET lastpostat = $1 WHERE id = $2`, nowMillis(), abandonChID)
+
+	got := activityByID(t, db, since)
+	if got[abandonChID].LastPostAt != 0 {
+		t.Errorf("LastPostAt = %d for a never-posted channel; want 0", got[abandonChID].LastPostAt)
+	}
+}
+
 func TestStore_ChannelActivityForTeam_returnsChannelType(t *testing.T) {
 	db := storetest.NewDB(t)
 	since := seedChannelActivityFixture(t, db)
