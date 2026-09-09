@@ -4,7 +4,7 @@ import {useSelector} from 'react-redux';
 
 import {ENABLE_PERSONAL_INSIGHTS} from '../../config';
 import {useEffectiveScope} from '../../hooks/useLicenseChecks';
-import {getCurrentTeamId} from '../../redux/mmSelectors';
+import {getEffectiveTeamId} from '../../redux/mmSelectors';
 import type {Scope, TimeRange} from '../../types';
 import {trackInsightsEvent} from '../../utils/telemetry';
 import {InsightCard} from '../Card/InsightCard';
@@ -36,7 +36,10 @@ function readQueryState(): {scope: Scope; range: TimeRange} {
         scope = 'my';
     }
     const rawRange = params.get('range');
-    const range: TimeRange = rawRange === '28_day' ? '28_day' : '7_day';
+    let range: TimeRange = '7_day';
+    if (rawRange === '28_day' || rawRange === '1_day') {
+        range = rawRange;
+    }
     return {scope, range};
 }
 
@@ -86,7 +89,7 @@ export const InsightsPage: React.FC = () => {
     const licensedScope = useEffectiveScope(requestedScope);
     const scope: Scope = ENABLE_PERSONAL_INSIGHTS ? licensedScope : 'team';
 
-    const teamId = useSelector(getCurrentTeamId);
+    const teamId = useSelector(getEffectiveTeamId);
 
     useEffect(() => {
         writeQueryState(scope, range);

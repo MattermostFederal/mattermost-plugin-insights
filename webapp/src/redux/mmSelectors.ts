@@ -72,6 +72,7 @@ interface MattermostState {
         teams?: {
             currentTeamId?: string;
             teams?: Record<string, TeamRecord>;
+            myMembers?: Record<string, unknown>;
         };
         preferences?: {
             myPreferences?: Record<string, PreferenceEntry>;
@@ -109,9 +110,33 @@ export function getCurrentTeamId(state: unknown): string {
     return root.entities?.teams?.currentTeamId ?? '';
 }
 
+// getEffectiveTeamId is what the Insights page should use, not
+// getCurrentTeamId.
+//
+// Insights is registered as a *product*, so it has its own top-level route
+// outside any team. Landing on /insights directly — from a bookmark, or the
+// product switcher on first load — leaves `currentTeamId` unset, and every
+// team-scoped request then goes to `/teams//top/...`, which 301s. The page
+// renders as though the server had no data.
+//
+// Falling back to the first team the user belongs to keeps the page useful in
+// that case. It is a guess when someone belongs to several teams, but a
+// deterministic one, and far better than a blank page.
+export function getEffectiveTeamId(state: unknown): string {
+    const root = state as MattermostState;
+    const current = root.entities?.teams?.currentTeamId ?? '';
+    if (current) {
+        return current;
+    }
+    const teams = root.entities?.teams?.teams ?? {};
+    const myMembers = root.entities?.teams?.myMembers;
+    const joined = Object.keys(teams).filter((id) => (myMembers ? Boolean(myMembers[id]) : true));
+    return joined.sort()[0] ?? '';
+}
+
 export function getCurrentTeamName(state: unknown): string {
     const root = state as MattermostState;
-    const id = root.entities?.teams?.currentTeamId ?? '';
+    const id = getEffectiveTeamId(state);
     const teams = root.entities?.teams?.teams ?? {};
     return teams[id]?.name ?? '';
 }
