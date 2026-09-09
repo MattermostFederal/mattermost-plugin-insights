@@ -4,10 +4,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/mattermost/mattermost/server/public/model"
 
 	"github.com/MattermostFederal/mattermost-plugin-insights/server/api/apitest"
+	"github.com/MattermostFederal/mattermost-plugin-insights/server/cache"
 	"github.com/MattermostFederal/mattermost-plugin-insights/server/insights"
 )
 
@@ -216,5 +218,51 @@ func TestChannelActivity_paginates(t *testing.T) {
 	api.ServeHTTP(w, newAuthedRequest(http.MethodGet, "/api/v1/teams/"+testTeamID+"/top/channels?time_range=7_day&per_page=1&page=9", testUserID))
 	if items := decodeChannels(t, w).Items; len(items) != 0 {
 		t.Errorf("page past the end returned %d items; want 0", len(items))
+	}
+}
+
+// A one-day window refreshes hourly rather than daily. The requirement was
+// "cached once a day", which holds for the long windows; at a 24-hour TTL a
+// one-day snapshot would spend most of its life describing a period that has
+// already ended.
+func TestChannelActivity_shortRangeRefreshesMoreOften(t *testing.T) {
+	if got := ttlForTimeRange(insights.TimeRange1Day); got != time.Hour {
+		t.Errorf("1_day TTL = %v; want 1h", got)
+	}
+	for _, tr := range []string{insights.TimeRange7Day, insights.TimeRange28Day} {
+		if got := ttlForTimeRange(tr); got != cache.DefaultTTL {
+			t.Errorf("%s TTL = %v; want %v", tr, got, cache.DefaultTTL)
+		}
+	}
+}
+
+func TestChannelActivity_oneDayRangeIsServed(t *testing.T) {
+	api, store := activityAPI()
+
+	w := httptest.NewRecorder()
+	api.ServeHTTP(w, newAuthedRequest(http.MethodGet, "/api/v1/teams/"+testTeamID+"/top/channels?time_range=1_day", testUserID))
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d; want 200; body=%s", w.Code, w.Body.String())
+	}
+	if len(store.ChannelActivityCalls) != 1 {
+		t.Fatalf("expected one aggregate call, got %d", len(store.ChannelActivityCalls))
+	}
+
+	// Its own cache entry, separate from the longer windows.
+	w = httptest.NewRecorder()
+	api.ServeHTTP(w, newAuthedRequest(http.MethodGet, "/api/v1/teams/"+testTeamID+"/top/channels?time_range=7_day", testUserID))
+	if n := len(store.ChannelActivityCalls); n != 2 {
+		t.Errorf("aggregate ran %d times across two ranges; want 2", n)
+	}
+}
+
+// "today" stays rejected: a moving since-midnight window is what the snapshot
+// genuinely cannot answer, as distinct from a fixed one-day window.
+func TestChannelActivity_todayStillRejected(t *testing.T) {
+	api, _ := activityAPI()
+	w := httptest.NewRecorder()
+	api.ServeHTTP(w, newAuthedRequest(http.MethodGet, "/api/v1/teams/"+testTeamID+"/top/channels?time_range=today", testUserID))
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("status = %d; want 400 for 'today'", w.Code)
 	}
 }

@@ -33,9 +33,14 @@ const DefaultTTL = 24 * time.Hour
 // behind the singleflight call is blocked for just as long.
 const DefaultBuildTimeout = 30 * time.Second
 
+// entry carries its own TTL. Freshness is a property of the data, not of the
+// cache: a 28-day aggregate that is a day old is 3% stale, while a 1-day
+// aggregate that is a day old is worthless. Short windows therefore refresh
+// more often — and cost less to rebuild, since they scan less history.
 type entry struct {
 	value   any
 	builtAt time.Time
+	ttl     time.Duration
 }
 
 // Cache is a TTL cache with collapsed misses. The zero value is not usable;
@@ -109,13 +114,13 @@ func (c *Cache) load(key string) (any, bool) {
 	if !ok {
 		return nil, false
 	}
-	if c.now().Sub(e.builtAt) >= c.ttl {
+	if c.now().Sub(e.builtAt) >= e.ttl {
 		return nil, false
 	}
 	return e.value, true
 }
 
-func (c *Cache) store(key string, value any) {
+func (c *Cache) store(key string, value any, ttl time.Duration) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -129,12 +134,12 @@ func (c *Cache) store(key string, value any) {
 	// The sweep is O(n) in entries, which is affordable because a write
 	// happens roughly once per key per TTL — not per request.
 	for k, e := range c.items {
-		if now.Sub(e.builtAt) >= c.ttl {
+		if now.Sub(e.builtAt) >= e.ttl {
 			delete(c.items, k)
 		}
 	}
 
-	c.items[key] = entry{value: value, builtAt: now}
+	c.items[key] = entry{value: value, builtAt: now, ttl: ttl}
 }
 
 // GetOrBuild returns the cached value for key, calling build to populate it on
@@ -148,7 +153,18 @@ func (c *Cache) store(key string, value any) {
 //
 // A failed build is not cached; the next caller retries.
 func GetOrBuild[T any](ctx context.Context, c *Cache, key string, build func(context.Context) (T, error)) (T, error) {
+	return GetOrBuildWithTTL(ctx, c, key, c.ttl, build)
+}
+
+// GetOrBuildWithTTL is GetOrBuild with an explicit lifetime for this entry.
+// Callers use it when freshness depends on what is being cached — a one-day
+// window needs rebuilding far more often than a twenty-eight-day one to stay
+// meaningful.
+func GetOrBuildWithTTL[T any](ctx context.Context, c *Cache, key string, ttl time.Duration, build func(context.Context) (T, error)) (T, error) {
 	var zero T
+	if ttl <= 0 {
+		ttl = c.ttl
+	}
 
 	if v, ok := c.load(key); ok {
 		typed, ok := v.(T)
@@ -177,7 +193,7 @@ func GetOrBuild[T any](ctx context.Context, c *Cache, key string, build func(con
 		if err != nil {
 			return nil, err
 		}
-		c.store(key, built)
+		c.store(key, built, ttl)
 		return built, nil
 	})
 	if err != nil {

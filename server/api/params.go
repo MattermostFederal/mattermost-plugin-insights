@@ -32,13 +32,13 @@ func parseTopParams(w http.ResponseWriter, r *http.Request) (topParams, bool) {
 		return topParams{}, false
 	}
 	switch timeRange {
-	case insights.TimeRange7Day, insights.TimeRange28Day:
+	case insights.TimeRange1Day, insights.TimeRange7Day, insights.TimeRange28Day:
 		// ok
 	default:
 		// "today" is deliberately rejected here: team insights are served
 		// from a once-daily snapshot, which cannot answer a since-midnight
 		// question. See insights.StartOfWindowUTC.
-		writeJSONError(w, http.StatusBadRequest, "time_range must be one of: 7_day, 28_day")
+		writeJSONError(w, http.StatusBadRequest, "time_range must be one of: 1_day, 7_day, 28_day")
 		return topParams{}, false
 	}
 

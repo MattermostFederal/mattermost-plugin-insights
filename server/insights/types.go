@@ -5,7 +5,12 @@ import (
 )
 
 const (
+	// TimeRangeToday is retired: "since midnight" is a moving, partial
+	// window that a periodically-rebuilt snapshot cannot answer coherently.
+	// TimeRange1Day replaces it with a fixed, closed one-day window, which
+	// the snapshot handles exactly as it does the longer ranges.
 	TimeRangeToday = "today"
+	TimeRange1Day  = "1_day"
 	TimeRange7Day  = "7_day"
 	TimeRange28Day = "28_day"
 

@@ -1,11 +1,13 @@
 export type Scope = 'team' | 'my';
 
-// 'today' was retired when team insights moved onto a once-daily snapshot:
-// a snapshot rebuilt once a day cannot answer a since-midnight question.
+// 'today' was retired because "since midnight" is a moving, partial window
+// that a periodically-rebuilt snapshot cannot answer coherently. '1_day' is
+// its replacement: a fixed, closed one-day window, refreshed hourly rather
+// than daily so it stays meaningful.
 // See server/insights/timerange.go (StartOfWindowUTC).
-export type TimeRange = '7_day' | '28_day';
+export type TimeRange = '1_day' | '7_day' | '28_day';
 
-export const TIME_RANGES: TimeRange[] = ['7_day', '28_day'];
+export const TIME_RANGES: TimeRange[] = ['1_day', '7_day', '28_day'];
 export const SCOPES: Scope[] = ['my', 'team'];
 
 export interface TopReaction {

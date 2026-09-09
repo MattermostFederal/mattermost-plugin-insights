@@ -24,9 +24,9 @@ interface Props {
     onChange: (range: TimeRange) => void;
 }
 
-// 'Today' was removed with the move to a once-daily snapshot; see
-// webapp/src/types.ts.
+// 'Today' was replaced by a fixed one-day window; see webapp/src/types.ts.
 const options: SelectOption[] = [
+    {value: '1_day', label: 'Last 24 hours'},
     {value: '7_day', label: 'Last 7 days'},
     {value: '28_day', label: 'Last 28 days'},
 ];

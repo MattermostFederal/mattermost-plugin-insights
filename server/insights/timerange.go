@@ -7,7 +7,7 @@ import (
 
 // ErrInvalidTimeRange is returned when a request's time_range query param is
 // not one of the supported values.
-var ErrInvalidTimeRange = errors.New("time_range must be one of: 7_day, 28_day")
+var ErrInvalidTimeRange = errors.New("time_range must be one of: 1_day, 7_day, 28_day")
 
 // StartOfWindowUTC returns the inclusive start of the window for the given
 // time_range, as midnight UTC.
@@ -43,6 +43,8 @@ func StartOfWindowUTC(timeRange string) (time.Time, error) {
 // retired "today").
 func NumberOfDaysForTimeRange(timeRange string) int {
 	switch timeRange {
+	case TimeRange1Day:
+		return 1
 	case TimeRange7Day:
 		return 7
 	case TimeRange28Day:
