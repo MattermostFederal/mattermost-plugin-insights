@@ -1840,3 +1840,46 @@ body.insights-product-active {
         }
     }
 }
+
+// New Team Members modal rows. The card that used to show avatars and the
+// "Say hello" wave is gone, so the modal carries them — it is now the only
+// place you can put a face to a name.
+.NewMembersTable {
+    .new-members-cell {
+        display: flex;
+        min-width: 0;
+        align-items: center;
+        gap: 10px;
+
+        &__names {
+            display: flex;
+            min-width: 0;
+            flex-direction: column;
+        }
+
+        &__username {
+            overflow: hidden;
+            color: rgba(var(--center-channel-color-rgb), 0.56);
+            font-size: 11px;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        // Revealed on row hover, the way the card's inline action behaved.
+        &__hello {
+            display: inline-flex;
+            align-items: center;
+            color: var(--link-color);
+            font-size: 12px;
+            gap: 5px;
+            opacity: 0;
+            transition: opacity 0.1s ease-in-out;
+            white-space: nowrap;
+        }
+    }
+
+    .DataGrid_row:hover .new-members-cell__hello,
+    .DataGrid_row:focus-within .new-members-cell__hello {
+        opacity: 1;
+    }
+}
