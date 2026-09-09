@@ -49,6 +49,13 @@ CREATE TABLE reactions (
     PRIMARY KEY (postid, userid, emojiname)
 );
 
+-- The columns below `type` are not referenced by any Insights query. They are
+-- here for row-width fidelity in the channel-activity benchmark: a real Posts
+-- row is dominated by `message`, and the query's cost is driven by how many
+-- heap pages a scan of Posts has to read. Without them a seeded million-post
+-- table is a fraction of the size of a real one and the benchmark flatters
+-- both query shapes. Widths match production
+-- (mattermost/server/channels/db/migrations/postgres/000020_create_posts).
 CREATE TABLE posts (
     id           varchar(26) PRIMARY KEY,
     userid       varchar(26) NOT NULL,
@@ -58,7 +65,14 @@ CREATE TABLE posts (
     updateat     bigint      NOT NULL DEFAULT 0,
     deleteat     bigint      NOT NULL DEFAULT 0,
     type         varchar(26) NOT NULL DEFAULT '',
-    props        jsonb
+    props        jsonb,
+    message      varchar(65535) NOT NULL DEFAULT '',
+    hashtags     varchar(1000)  NOT NULL DEFAULT '',
+    fileids      varchar(300)   NOT NULL DEFAULT '',
+    originalid   varchar(26)    NOT NULL DEFAULT '',
+    editat       bigint         NOT NULL DEFAULT 0,
+    ispinned     boolean        NOT NULL DEFAULT FALSE,
+    remoteid     varchar(26)
 );
 
 CREATE TABLE threads (
