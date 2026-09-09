@@ -37,6 +37,11 @@ export interface Props {
 
     // When the snapshot was built, unix millis. 0 means "just now".
     generatedAt?: number;
+
+    // An extra tile appended to the summary row. The page passes New Team
+    // Members here so it joins the stat row instead of floating below the
+    // table; this component stays unaware of what is in it.
+    trailingTile?: React.ReactNode;
 }
 
 export type GovernanceFilter = '' | 'unlabelled' | 'inactive' | 'private' | 'public';
@@ -68,9 +73,9 @@ const percent = (n: number, total: number): number => (total ? Math.round((n / t
 
 // The tiles state the work remaining rather than the work done: "6 need a
 // purpose" is a queue, "5 are labelled" is trivia.
-const CoverageSummary: React.FC<{summary: ChannelGovernanceSummary}> = ({summary}) => (
+const CoverageSummary: React.FC<{summary: ChannelGovernanceSummary; trailingTile?: React.ReactNode}> = ({summary, trailingTile}) => (
     <div
-        className='governance-summary'
+        className={`governance-summary${trailingTile ? ' governance-summary--four' : ''}`}
         data-testid='governance-summary'
     >
         <div className='governance-stat'>
@@ -103,6 +108,7 @@ const CoverageSummary: React.FC<{summary: ChannelGovernanceSummary}> = ({summary
                 {`${percent(summary.with_purpose, summary.total_channels)}% of ${summary.total_channels} labelled`}
             </span>
         </div>
+        {trailingTile}
     </div>
 );
 
@@ -246,7 +252,7 @@ const NotSet: React.FC = () => (
 
 const ChannelGovernanceListComponent: React.FC<Props> = ({
     items, summary, loading, error, onSelectChannel, sort, ascending, onSort,
-    search, onSearch, filter, onFilter, generatedAt,
+    search, onSearch, filter, onFilter, generatedAt, trailingTile,
 }) => {
     const rows = useMemo(() => items.map((c) => {
         const isPrivate = c.type === 'P';
@@ -319,7 +325,12 @@ const ChannelGovernanceListComponent: React.FC<Props> = ({
 
     return (
         <div className='ChannelGovernanceList'>
-            {summary && <CoverageSummary summary={summary}/>}
+            {summary && (
+                <CoverageSummary
+                    summary={summary}
+                    trailingTile={trailingTile}
+                />
+            )}
             <Freshness generatedAt={generatedAt}/>
             <Toolbar
                 search={search}

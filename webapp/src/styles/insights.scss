@@ -1799,3 +1799,44 @@ body.insights-product-active {
         padding: 5px 12px;
     }
 }
+
+// Four-up summary row: three channel stats plus the New Team Members tile.
+.ChannelGovernanceList {
+    .governance-summary--four {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    // The members tile is clickable (it opens the full list), so it is a
+    // button — reset the browser chrome and keep it visually a tile.
+    .governance-stat--button {
+        align-items: flex-start;
+        border: 1px solid rgba(var(--center-channel-color-rgb), 0.12);
+        cursor: pointer;
+        font: inherit;
+        text-align: left;
+
+        &:hover {
+            background: rgba(var(--center-channel-color-rgb), 0.04);
+        }
+    }
+
+    // Face pile: the count alone would drop the useful part, which is who
+    // joined. Overlapping avatars carry that without costing a row each.
+    .governance-facepile {
+        display: flex;
+        align-items: center;
+        margin-top: 6px;
+
+        &__face {
+            margin-right: -6px;
+            border: 2px solid var(--center-channel-bg);
+            border-radius: 50%;
+        }
+
+        &__more {
+            margin-left: 12px;
+            color: rgba(var(--center-channel-color-rgb), 0.56);
+            font-size: 11px;
+        }
+    }
+}

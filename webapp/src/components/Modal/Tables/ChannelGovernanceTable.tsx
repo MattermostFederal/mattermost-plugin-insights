@@ -27,7 +27,11 @@ function useDebounced<T>(value: T, delayMs: number): T {
     return settled;
 }
 
-const ChannelGovernanceTableComponent: React.FC<TableProps> = ({timeRange, teamId}) => {
+interface GovernanceTableProps extends TableProps {
+    trailingTile?: React.ReactNode;
+}
+
+const ChannelGovernanceTableComponent: React.FC<GovernanceTableProps> = ({timeRange, teamId, trailingTile}) => {
     const teamName = useSelector(getCurrentTeamName);
     const [summary, setSummary] = useState<ChannelGovernanceSummary | undefined>();
     const [sort, setSort] = useState<SortColumn>('posts');
@@ -98,6 +102,7 @@ const ChannelGovernanceTableComponent: React.FC<TableProps> = ({timeRange, teamI
             filter={filter}
             onFilter={setFilter}
             generatedAt={generatedAt}
+            trailingTile={trailingTile}
         />
     );
 };

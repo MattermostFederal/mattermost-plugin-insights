@@ -7,8 +7,7 @@ import {useEffectiveScope} from '../../hooks/useLicenseChecks';
 import {getEffectiveTeamId} from '../../redux/mmSelectors';
 import type {Scope, TimeRange} from '../../types';
 import {trackInsightsEvent} from '../../utils/telemetry';
-import {InsightCard} from '../Card/InsightCard';
-import {NewTeamMembersCard} from '../Cards/NewTeamMembersCard';
+import {NewTeamMembersTile} from '../Cards/NewTeamMembersTile';
 import {ScopeSelect} from '../Controls/ScopeSelect';
 import {TimeRangeSelect} from '../Controls/TimeRangeSelect';
 import type {InsightsWidgetType} from '../Modal/InsightsModal';
@@ -47,15 +46,11 @@ function writeQueryState(scope: Scope, range: TimeRange) {
     window.history.replaceState(null, '', next);
 }
 
-interface CardSpec {
-    key: InsightsWidgetType;
-    title: string;
-    subtitle: string;
-    teamOnly?: boolean;
-    userOnly?: boolean;
-}
-
-// 1.0 ships the governance table plus one card. Everything else is off:
+// 1.0 ships a single surface: the channel governance table, with New Team
+// Members folded into its summary row as a tile (see NewTeamMembersTile — as
+// a full card it out-sized the table it sat under).
+//
+// The scorecard grid is gone with the cards that filled it:
 //
 //   - Top Channels and Top Inactive Channels are the governance table's rows
 //     sorted two ways. Now that its columns are sortable they add nothing, and
@@ -72,10 +67,6 @@ interface CardSpec {
 // New Team Members stays because it is the one card that snapshots cheaply:
 // no channel dimension at all, so a single entry per team is correct for
 // everyone (§2.6).
-const cards: CardSpec[] = [
-    {key: 'newTeamMembers', title: 'New Team Members', subtitle: 'People who recently joined the team', teamOnly: true},
-];
-
 export const InsightsPage: React.FC = () => {
     const initial = readQueryState();
     const [requestedScope, setRequestedScope] = useState<Scope>(initial.scope);
@@ -107,22 +98,18 @@ export const InsightsPage: React.FC = () => {
         setRange(next);
     }, []);
 
-    const openDetails = useCallback((spec: CardSpec) => {
-        trackInsightsEvent(`open_modal_${spec.key.toLowerCase()}`);
-        setModal({widgetType: spec.key, title: spec.title, subtitle: spec.subtitle});
-    }, []);
-
     const closeDetails = useCallback(() => setModal(null), []);
 
-    const visible = cards.filter((c) => {
-        if (scope === 'team' && c.userOnly) {
-            return false;
-        }
-        if (scope === 'my' && c.teamOnly) {
-            return false;
-        }
-        return true;
-    });
+    // The New Team Members tile opens the same paginated modal the card's
+    // chevron used to, so the full list is still one click away.
+    const openNewMembers = useCallback(() => {
+        trackInsightsEvent('open_modal_newteammembers');
+        setModal({
+            widgetType: 'newTeamMembers',
+            title: 'New Team Members',
+            subtitle: 'People who recently joined the team',
+        });
+    }, []);
 
     return (
         <main className='insights-page'>
@@ -149,13 +136,20 @@ export const InsightsPage: React.FC = () => {
                     <h2 className='insights-page__section-title'>
                         <FormattedMessage
                             id='insights.governance.title'
-                            defaultMessage='Channel governance'
+                            defaultMessage='Team activity'
                         />
                     </h2>
                     <ChannelGovernanceTable
                         scope={scope}
                         timeRange={range}
                         teamId={teamId}
+                        trailingTile={
+                            <NewTeamMembersTile
+                                teamId={teamId}
+                                timeRange={range}
+                                onOpenDetails={openNewMembers}
+                            />
+                        }
                     />
                 </section>
             ) : null}
@@ -171,27 +165,6 @@ export const InsightsPage: React.FC = () => {
                     teamId={teamId}
                 />
             ) : null}
-            <div className='insights-page__grid'>
-                {visible.map((c) => {
-                    const handleOpen = () => openDetails(c);
-                    if (c.key === 'newTeamMembers') {
-                        return (
-                            <NewTeamMembersCard
-                                key={c.key}
-                                teamId={teamId}
-                                timeRange={range}
-                                onOpenDetails={handleOpen}
-                            />
-                        );
-                    }
-                    return (
-                        <InsightCard
-                            key={c.key}
-                            title={c.title}
-                        />
-                    );
-                })}
-            </div>
         </main>
     );
 };

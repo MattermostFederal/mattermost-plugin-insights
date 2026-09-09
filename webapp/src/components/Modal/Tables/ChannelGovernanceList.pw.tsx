@@ -275,3 +275,28 @@ test('renders plain headers when sorting is not wired up', async ({mount}) => {
     await expect(component.locator('th[aria-sort]')).toHaveCount(0);
     await expect(component).toContainText('Members');
 });
+
+// New Team Members joins the summary row as a tile rather than sitting below
+// the table, where six joiners out-sized eleven channels.
+test('renders a trailing tile in the summary row', async ({mount}) => {
+    const component = await mount(
+        <ChannelGovernanceList
+            items={[busy]}
+            summary={summary}
+            trailingTile={<div data-testid='extra-tile'>{'7 joined'}</div>}
+        />,
+    );
+
+    const tiles = component.locator('[data-testid="governance-summary"]');
+    await expect(tiles.locator('[data-testid="extra-tile"]')).toContainText('7 joined');
+});
+
+test('summary row stays three-up when no trailing tile is given', async ({mount}) => {
+    const component = await mount(
+        <ChannelGovernanceList
+            items={[busy]}
+            summary={summary}
+        />,
+    );
+    await expect(component.locator('.governance-summary--four')).toHaveCount(0);
+});
