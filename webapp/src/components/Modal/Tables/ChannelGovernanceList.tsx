@@ -10,9 +10,11 @@
 import React, {memo, useMemo} from 'react';
 import {FormattedMessage} from 'react-intl';
 
+import type {SortColumn} from './sorting';
+
 import type {ChannelActivity, ChannelGovernanceSummary, TimeRange} from '../../../types';
 
-export type SortColumn = 'posts' | 'active_users' | 'members' | 'last_post' | 'created' | 'name';
+export type {SortColumn};
 
 export interface Props {
     items: ChannelActivity[];

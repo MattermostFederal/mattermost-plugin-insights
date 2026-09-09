@@ -6,7 +6,9 @@ import React, {memo, useCallback, useEffect, useState} from 'react';
 import {useSelector} from 'react-redux';
 
 import {ChannelGovernanceList} from './ChannelGovernanceList';
-import type {GovernanceFilter, SortColumn} from './ChannelGovernanceList';
+import type {GovernanceFilter} from './ChannelGovernanceList';
+import {nextSortState} from './sorting';
+import type {SortColumn} from './sorting';
 import type {TableProps} from './types';
 
 import {Client} from '../../../client/Client';
@@ -68,16 +70,11 @@ const ChannelGovernanceTableComponent: React.FC<GovernanceTableProps> = ({timeRa
         AUDIT_PER_PAGE,
     );
 
-    // Clicking the active column flips direction; clicking a new one starts
-    // descending, since "most posts" is the usual first question.
     const handleSort = useCallback((column: SortColumn) => {
-        if (column === sort) {
-            setAscending((prev) => !prev);
-            return;
-        }
-        setSort(column);
-        setAscending(false);
-    }, [sort]);
+        const next = nextSortState({sort, ascending}, column);
+        setSort(next.sort);
+        setAscending(next.ascending);
+    }, [sort, ascending]);
 
     const handleSelect = useCallback((channel: ChannelActivity) => {
         if (!teamName) {

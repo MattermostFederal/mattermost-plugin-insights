@@ -93,6 +93,17 @@ const (
 	SortByName        = "name"
 )
 
+// channelSortLabel is the text the Channel column renders, case-folded. Sorting
+// that column has to follow what is on screen: a channel renamed to "Alpha"
+// keeps whatever slug it was created with, so ordering by Name would look
+// arbitrary to the person reading the table.
+func channelSortLabel(c *insights.ChannelActivity) string {
+	if c.DisplayName != "" {
+		return strings.ToLower(c.DisplayName)
+	}
+	return strings.ToLower(c.Name)
+}
+
 // sortChannelActivityBy orders rows by the named column. Name is the tiebreak
 // for every column, so the order is total and paging is stable — without it,
 // two channels with equal counts could swap between page requests and a row
@@ -110,7 +121,11 @@ func sortChannelActivityBy(rows []*insights.ChannelActivity, column string, asce
 		case SortByCreated:
 			return a.CreateAt < b.CreateAt, a.CreateAt != b.CreateAt
 		case SortByName:
-			return false, false // name is the tiebreak below
+			// Decided here rather than deferred to the tiebreak below, which
+			// is always ascending — deferring left the direction toggle inert
+			// on this one column.
+			x, y := channelSortLabel(a), channelSortLabel(b)
+			return x < y, x != y
 		default: // SortByPosts
 			return a.MessageCount < b.MessageCount, a.MessageCount != b.MessageCount
 		}
@@ -148,8 +163,9 @@ func parseSort(q url.Values) (column string, ascending bool) {
 	default:
 		column = SortByPosts
 	}
-	// Name and the "quiet channels first" cases read better ascending; every
-	// other column defaults to descending, which is what "top" means.
+	// Descending unless asked otherwise, which is what "top" means. The
+	// client always sends a direction; it is the one that decides that Channel
+	// opens A→Z while the counts open at the largest.
 	ascending = q.Get("direction") == "asc"
 	return column, ascending
 }

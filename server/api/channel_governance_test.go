@@ -179,6 +179,7 @@ func TestGovernance_sortsByRequestedColumn(t *testing.T) {
 		{"time_range=7_day&sort=members", []string{"abandoned", "busy", "quiet"}},
 		{"time_range=7_day&sort=members&direction=asc", []string{"quiet", "busy", "abandoned"}},
 		{"time_range=7_day&sort=name&direction=asc", []string{"abandoned", "busy", "quiet"}},
+		{"time_range=7_day&sort=name", []string{"quiet", "busy", "abandoned"}},
 		{"time_range=7_day&sort=last_post&direction=asc", []string{"quiet", "abandoned", "busy"}},
 	}
 
@@ -195,6 +196,45 @@ func TestGovernance_sortsByRequestedColumn(t *testing.T) {
 			for i := range tc.want {
 				if got[i] != tc.want[i] {
 					t.Fatalf("got %v; want %v", got, tc.want)
+				}
+			}
+		})
+	}
+}
+
+// The Channel column renders display_name, so alphabetical has to follow that
+// and not the URL slug, which the reader never sees. Case is folded for the
+// same reason: nobody reads "Zebra, apple" as sorted.
+func TestGovernance_sortsNameByTheDisplayedLabel(t *testing.T) {
+	api, store := governanceAPI()
+	// Slugs deliberately ordered against the display names, and mixed case, so
+	// sorting on either the raw slug or raw bytes gives a different answer.
+	store.ChannelActivityResult = []*insights.ChannelActivity{
+		{ID: "cha0aaaaaaaaaaaaaaaaaaaaaa", Name: "c-zulu", DisplayName: "alpha team", Type: model.ChannelTypeOpen, CreateAt: 1},
+		{ID: "chb0aaaaaaaaaaaaaaaaaaaaaa", Name: "a-mike", DisplayName: "Mid review", Type: model.ChannelTypeOpen, CreateAt: 1},
+		{ID: "chc0aaaaaaaaaaaaaaaaaaaaaa", Name: "b-alpha", DisplayName: "zeta ops", Type: model.ChannelTypeOpen, CreateAt: 1},
+		// No display name set: the table falls back to the slug, so ordering
+		// must too.
+		{ID: "chd0aaaaaaaaaaaaaaaaaaaaaa", Name: "b-omega", Type: model.ChannelTypeOpen, CreateAt: 1},
+	}
+
+	cases := map[string][]string{
+		"asc":  {"c-zulu", "b-omega", "a-mike", "b-alpha"},
+		"desc": {"b-alpha", "a-mike", "b-omega", "c-zulu"},
+	}
+	for dir, want := range cases {
+		t.Run(dir, func(t *testing.T) {
+			body := getGovernance(t, api, "time_range=7_day&sort=name&direction="+dir)
+			got := make([]string, 0, len(body.Items))
+			for _, c := range body.Items {
+				got = append(got, c.Name)
+			}
+			if len(got) != len(want) {
+				t.Fatalf("got %v; want %v", got, want)
+			}
+			for i := range want {
+				if got[i] != want[i] {
+					t.Fatalf("got %v; want %v", got, want)
 				}
 			}
 		})
