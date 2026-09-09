@@ -19,14 +19,34 @@ import (
 	"github.com/MattermostFederal/mattermost-plugin-insights/server/insights"
 )
 
-// The Posts predicates live in the LEFT JOIN's ON clause rather than in
-// WHERE. In WHERE they would filter out the channel row itself whenever a
-// channel has no qualifying posts, and a populated channel with zero recent
-// messages is exactly what the governance table needs to show.
+// Posts are aggregated in a MATERIALIZED CTE and only then joined to
+// Channels, rather than LEFT JOINed row-by-row and grouped at the end.
 //
-// MemberCount comes from a pre-aggregated derived table instead of a second
-// LEFT JOIN onto ChannelMembers, which would multiply the Posts rows by the
-// member count and inflate every aggregate.
+// The shape matters more than it looks. Postgres cannot estimate selectivity
+// through the four JSONB `Props ->> ...` predicates, so it estimated one row
+// where there were 900,000 and picked a nested loop that materialised every
+// post and rescanned it once per channel. On a 490-channel team with ~1M
+// posts that query took 75 seconds — past the cache's own build timeout, so
+// the page would never have loaded. Aggregating first bounds the join to one
+// row per channel and makes the estimate irrelevant.
+//
+// MessageCount and LastRealPostAt come from the same scan, split by FILTER:
+// the row set for the two-year last-post lookback is a superset of the
+// window, so scanning twice would be pure waste.
+//
+// The CTE deliberately does not restrict to the team. Any join inside it —
+// even a semi-join on the team's 500 channel ids — is planned as a nested
+// loop for the same estimation reason, and measured 39s against 1.3s for the
+// unrestricted version. Grouping every channel and letting the outer join
+// discard the rest is the cheaper shape by a factor of thirty.
+//
+// The cost is real but bounded: serving one team also aggregates other teams'
+// channels. A future optimisation is to build every team's rows from a single
+// daily pass rather than one pass per team.
+//
+// The LEFT JOIN onto the CTE (rather than an inner join) is what keeps
+// channels with no posts in the result — a populated channel with zero recent
+// messages is exactly what the governance table exists to show.
 //
 // LastPostAt is computed here rather than read from the denormalized
 // Channels.LastPostAt column. That column is free but wrong for this purpose:
@@ -48,6 +68,32 @@ import (
 const lastPostLookbackMillis int64 = 2 * 365 * 24 * 60 * 60 * 1000
 
 const channelActivityForTeamSQL = `
+WITH activity AS MATERIALIZED (
+	SELECT
+		Posts.ChannelId,
+		count(*) FILTER (WHERE Posts.CreateAt >= $2) AS MessageCount,
+		count(DISTINCT Posts.UserId) FILTER (WHERE Posts.CreateAt >= $2) AS ActivePosters,
+		COALESCE(max(Posts.CreateAt) FILTER (WHERE Posts.CreateAt >= $2), 0) AS LastPostInWindow,
+		max(Posts.CreateAt) AS LastRealPostAt
+	FROM Posts
+	WHERE Posts.DeleteAt = 0
+		AND Posts.CreateAt >= $3
+		AND Posts.CreateAt < $4
+		AND Posts.Type = ''
+		AND (Posts.Props ->> 'from_bot' IS NULL OR Posts.Props ->> 'from_bot' = 'false')
+		AND (Posts.Props ->> 'from_webhook' IS NULL OR Posts.Props ->> 'from_webhook' = 'false')
+		AND (Posts.Props ->> 'from_oauth_app' IS NULL OR Posts.Props ->> 'from_oauth_app' = 'false')
+		AND (Posts.Props ->> 'from_plugin' IS NULL OR Posts.Props ->> 'from_plugin' = 'false')
+	GROUP BY Posts.ChannelId
+),
+members AS MATERIALIZED (
+	SELECT ChannelMembers.ChannelId, count(*) AS MemberCount
+	FROM ChannelMembers
+	JOIN Channels AS MemberChannels
+		ON MemberChannels.Id = ChannelMembers.ChannelId
+		AND MemberChannels.TeamId = $1
+	GROUP BY ChannelMembers.ChannelId
+)
 SELECT
 	Channels.Id,
 	Channels.Type,
@@ -56,53 +102,17 @@ SELECT
 	Channels.Purpose,
 	Channels.Header,
 	Channels.CreateAt,
-	COALESCE(LastReal.LastRealPostAt, 0) AS LastPostAt,
-	COALESCE(max(Posts.CreateAt), 0) AS LastPostInWindow,
-	count(Posts.Id) AS MessageCount,
-	count(DISTINCT Posts.UserId) AS ActivePosters,
-	COALESCE(Members.MemberCount, 0) AS MemberCount
+	COALESCE(activity.LastRealPostAt, 0) AS LastPostAt,
+	COALESCE(activity.LastPostInWindow, 0) AS LastPostInWindow,
+	COALESCE(activity.MessageCount, 0) AS MessageCount,
+	COALESCE(activity.ActivePosters, 0) AS ActivePosters,
+	COALESCE(members.MemberCount, 0) AS MemberCount
 FROM Channels
-LEFT JOIN Posts
-	ON Posts.ChannelId = Channels.Id
-	AND Posts.DeleteAt = 0
-	AND Posts.CreateAt >= $2
-	AND Posts.CreateAt < $3
-	AND Posts.Type = ''
-	AND (Posts.Props ->> 'from_bot' IS NULL OR Posts.Props ->> 'from_bot' = 'false')
-	AND (Posts.Props ->> 'from_webhook' IS NULL OR Posts.Props ->> 'from_webhook' = 'false')
-	AND (Posts.Props ->> 'from_oauth_app' IS NULL OR Posts.Props ->> 'from_oauth_app' = 'false')
-	AND (Posts.Props ->> 'from_plugin' IS NULL OR Posts.Props ->> 'from_plugin' = 'false')
-LEFT JOIN (
-	SELECT ChannelMembers.ChannelId, count(*) AS MemberCount
-	FROM ChannelMembers
-	JOIN Channels AS MemberChannels
-		ON MemberChannels.Id = ChannelMembers.ChannelId
-		AND MemberChannels.TeamId = $1
-	GROUP BY ChannelMembers.ChannelId
-) AS Members ON Members.ChannelId = Channels.Id
-LEFT JOIN (
-	SELECT Posts.ChannelId, max(Posts.CreateAt) AS LastRealPostAt
-	FROM Posts
-	JOIN Channels AS PostChannels
-		ON PostChannels.Id = Posts.ChannelId
-		AND PostChannels.TeamId = $1
-	WHERE Posts.DeleteAt = 0
-		AND Posts.CreateAt >= $4
-		AND Posts.CreateAt < $3
-		AND Posts.Type = ''
-		AND (Posts.Props ->> 'from_bot' IS NULL OR Posts.Props ->> 'from_bot' = 'false')
-		AND (Posts.Props ->> 'from_webhook' IS NULL OR Posts.Props ->> 'from_webhook' = 'false')
-		AND (Posts.Props ->> 'from_oauth_app' IS NULL OR Posts.Props ->> 'from_oauth_app' = 'false')
-		AND (Posts.Props ->> 'from_plugin' IS NULL OR Posts.Props ->> 'from_plugin' = 'false')
-	GROUP BY Posts.ChannelId
-) AS LastReal ON LastReal.ChannelId = Channels.Id
+LEFT JOIN activity ON activity.ChannelId = Channels.Id
+LEFT JOIN members ON members.ChannelId = Channels.Id
 WHERE Channels.TeamId = $1
 	AND Channels.DeleteAt = 0
 	AND (Channels.Type = 'O' OR Channels.Type = 'P')
-GROUP BY
-	Channels.Id, Channels.Type, Channels.DisplayName, Channels.Name,
-	Channels.Purpose, Channels.Header, Channels.CreateAt,
-	LastReal.LastRealPostAt, Members.MemberCount
 ORDER BY MessageCount DESC, Channels.Name ASC
 `
 
@@ -119,7 +129,7 @@ ORDER BY MessageCount DESC, Channels.Name ASC
 func (s *Store) ChannelActivityForTeam(ctx context.Context, teamID string, w insights.Window) ([]*insights.ChannelActivity, error) {
 	start, end := w.StartMillis(), w.EndMillis()
 	lastPostLookback := start - lastPostLookbackMillis
-	rows, err := s.replica.QueryContext(ctx, channelActivityForTeamSQL, teamID, start, end, lastPostLookback)
+	rows, err := s.replica.QueryContext(ctx, channelActivityForTeamSQL, teamID, start, lastPostLookback, end)
 	if err != nil {
 		return nil, err
 	}
