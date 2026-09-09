@@ -13,28 +13,34 @@ import (
 // 26617fcbdc. The original was squirrel-built; we keep that shape since the
 // optional FirstName/LastName columns are conditionally appended.
 
-func newTeamMembersSelect(builder sq.StatementBuilderType, teamID string, since int64, columns ...string) sq.SelectBuilder {
+func newTeamMembersSelect(builder sq.StatementBuilderType, teamID string, w insights.Window, columns ...string) sq.SelectBuilder {
 	return builder.
 		Select(columns...).
 		From("teammembers").
 		Join("users ON users.id = teammembers.userid").
 		LeftJoin("bots ON bots.userid = users.id").
-		Where(sq.GtOrEq{"teammembers.createat": since}).
+		Where(sq.GtOrEq{"teammembers.createat": w.StartMillis()}).
+		Where(sq.Lt{"teammembers.createat": w.EndMillis()}).
 		Where(sq.Eq{"teammembers.deleteat": 0, "teammembers.teamid": teamID, "users.deleteat": 0, "bots.userid": nil})
 }
 
-// NewTeamMembersSince returns the users who joined the given team on or
-// after the given unix-millisecond timestamp, ordered most-recent-first,
-// excluding bots and deleted users. The returned list's TotalCount counts
-// every qualifying member, regardless of pagination.
+// NewTeamMembersSince returns the users who joined the given team inside the
+// window, ordered most-recent-first, excluding bots and deleted users. The
+// returned list's TotalCount counts every qualifying member, regardless of
+// pagination.
+//
+// The window is closed at both ends (insights.Window). It used to take only a
+// start, which meant this insight silently included today while every other
+// surface on the page stopped at midnight — the same page reporting two
+// different "last 7 days".
 //
 // showFullName controls whether FirstName / LastName are populated; when
 // false the caller should be a non-admin and these fields stay zero.
-func (s *Store) NewTeamMembersSince(ctx context.Context, teamID string, since int64, page, perPage int, showFullName bool) (*insights.NewTeamMembersList, error) {
+func (s *Store) NewTeamMembersSince(ctx context.Context, teamID string, w insights.Window, page, perPage int, showFullName bool) (*insights.NewTeamMembersList, error) {
 	offset := page * perPage
 	limit := perPage + 1
 
-	countSQL, countArgs, err := newTeamMembersSelect(s.Builder, teamID, since, "count(*)").ToSql()
+	countSQL, countArgs, err := newTeamMembersSelect(s.Builder, teamID, w, "count(*)").ToSql()
 	if err != nil {
 		return nil, err
 	}
@@ -54,7 +60,7 @@ func (s *Store) NewTeamMembersSince(ctx context.Context, teamID string, since in
 	if showFullName {
 		cols = append(cols, "users.firstname", "users.lastname")
 	}
-	listBuilder := newTeamMembersSelect(s.Builder, teamID, since, cols...).
+	listBuilder := newTeamMembersSelect(s.Builder, teamID, w, cols...).
 		OrderBy("teammembers.createat DESC").
 		Limit(uint64(limit)).  //nolint:gosec
 		Offset(uint64(offset)) //nolint:gosec

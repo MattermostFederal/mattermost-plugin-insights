@@ -203,7 +203,7 @@ type ChannelsForTeamCall struct {
 
 type NewTeamMembersCall struct {
 	TeamID        string
-	Since         int64
+	Window        insights.Window
 	Page, PerPage int
 	ShowFullName  bool
 }
@@ -252,8 +252,8 @@ func (s *StoreStub) TopThreadsForTeamSince(_ context.Context, teamID, userID str
 	return s.TopThreadsForTeamResult, s.TopThreadsForTeamErr
 }
 
-func (s *StoreStub) NewTeamMembersSince(_ context.Context, teamID string, since int64, page, perPage int, showFullName bool) (*insights.NewTeamMembersList, error) {
-	s.NewTeamMembersCalls = append(s.NewTeamMembersCalls, NewTeamMembersCall{teamID, since, page, perPage, showFullName})
+func (s *StoreStub) NewTeamMembersSince(_ context.Context, teamID string, w insights.Window, page, perPage int, showFullName bool) (*insights.NewTeamMembersList, error) {
+	s.NewTeamMembersCalls = append(s.NewTeamMembersCalls, NewTeamMembersCall{teamID, w, page, perPage, showFullName})
 	return s.NewTeamMembersResult, s.NewTeamMembersErr
 }
 

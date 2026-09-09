@@ -5,7 +5,9 @@ import (
 	"database/sql"
 	"fmt"
 	"testing"
+	"time"
 
+	"github.com/MattermostFederal/mattermost-plugin-insights/server/insights"
 	"github.com/MattermostFederal/mattermost-plugin-insights/server/store/storetest"
 )
 
@@ -42,7 +44,7 @@ func TestStore_NewTeamMembersSince_basicResponse(t *testing.T) {
 	seedUser(t, db, "uaaaaaaaaaaaaaaaaaaaaaaaaa", "alice", "Alice", "Anders", "Eng", "ali", 1700)
 	seedTeamMember(t, db, testTeamID, "uaaaaaaaaaaaaaaaaaaaaaaaaa", now, 0)
 
-	got, err := s.NewTeamMembersSince(context.Background(), testTeamID, since, 0, 10, true)
+	got, err := s.NewTeamMembersSince(context.Background(), testTeamID, windowFrom(since), 0, 10, true)
 	if err != nil {
 		t.Fatalf("NewTeamMembersSince: %v", err)
 	}
@@ -71,7 +73,7 @@ func TestStore_NewTeamMembersSince_excludesBots(t *testing.T) {
 	seedTeamMember(t, db, testTeamID, "uhumanaaaaaaaaaaaaaaaaaaaa", now, 0)
 	seedTeamMember(t, db, testTeamID, "ubotaaaaaaaaaaaaaaaaaaaaaa", now, 0)
 
-	got, err := s.NewTeamMembersSince(context.Background(), testTeamID, since, 0, 10, true)
+	got, err := s.NewTeamMembersSince(context.Background(), testTeamID, windowFrom(since), 0, 10, true)
 	if err != nil {
 		t.Fatalf("NewTeamMembersSince: %v", err)
 	}
@@ -97,7 +99,7 @@ func TestStore_NewTeamMembersSince_excludesDeletedUsers(t *testing.T) {
 	seedTeamMember(t, db, testTeamID, "udelaaaaaaaaaaaaaaaaaaaaaa", now, 0)
 	seedTeamMember(t, db, testTeamID, "uactiveaaaaaaaaaaaaaaaaaaa", now, 0)
 
-	got, err := s.NewTeamMembersSince(context.Background(), testTeamID, since, 0, 10, true)
+	got, err := s.NewTeamMembersSince(context.Background(), testTeamID, windowFrom(since), 0, 10, true)
 	if err != nil {
 		t.Fatalf("NewTeamMembersSince: %v", err)
 	}
@@ -118,7 +120,7 @@ func TestStore_NewTeamMembersSince_excludesDeletedMembership(t *testing.T) {
 	seedTeamMember(t, db, testTeamID, "ulapsedaaaaaaaaaaaaaaaaaaa", now, now-1000)
 	seedTeamMember(t, db, testTeamID, "ucurrentaaaaaaaaaaaaaaaaaa", now, 0)
 
-	got, err := s.NewTeamMembersSince(context.Background(), testTeamID, since, 0, 10, true)
+	got, err := s.NewTeamMembersSince(context.Background(), testTeamID, windowFrom(since), 0, 10, true)
 	if err != nil {
 		t.Fatalf("NewTeamMembersSince: %v", err)
 	}
@@ -140,7 +142,7 @@ func TestStore_NewTeamMembersSince_pagination(t *testing.T) {
 		seedTeamMember(t, db, testTeamID, uid, now, 0)
 	}
 
-	page0, err := s.NewTeamMembersSince(context.Background(), testTeamID, since, 0, 2, true)
+	page0, err := s.NewTeamMembersSince(context.Background(), testTeamID, windowFrom(since), 0, 2, true)
 	if err != nil {
 		t.Fatalf("page0: %v", err)
 	}
@@ -148,7 +150,7 @@ func TestStore_NewTeamMembersSince_pagination(t *testing.T) {
 		t.Fatalf("page0: got TotalCount=%d items=%d hasNext=%v; want 3/2/true", page0.TotalCount, len(page0.Items), page0.HasNext)
 	}
 
-	page1, err := s.NewTeamMembersSince(context.Background(), testTeamID, since, 1, 2, true)
+	page1, err := s.NewTeamMembersSince(context.Background(), testTeamID, windowFrom(since), 1, 2, true)
 	if err != nil {
 		t.Fatalf("page1: %v", err)
 	}
@@ -167,7 +169,7 @@ func TestStore_NewTeamMembersSince_omitsFullNameWhenDisabled(t *testing.T) {
 	seedUser(t, db, "uaaaaaaaaaaaaaaaaaaaaaaaaa", "alice", "Alice", "Anders", "Eng", "ali", 0)
 	seedTeamMember(t, db, testTeamID, "uaaaaaaaaaaaaaaaaaaaaaaaaa", now, 0)
 
-	got, err := s.NewTeamMembersSince(context.Background(), testTeamID, since, 0, 10, false)
+	got, err := s.NewTeamMembersSince(context.Background(), testTeamID, windowFrom(since), 0, 10, false)
 	if err != nil {
 		t.Fatalf("NewTeamMembersSince: %v", err)
 	}
@@ -180,5 +182,52 @@ func TestStore_NewTeamMembersSince_omitsFullNameWhenDisabled(t *testing.T) {
 	// other fields still populated
 	if got.Items[0].Username != "alice" || got.Items[0].Position != "Eng" || got.Items[0].Nickname != "ali" {
 		t.Errorf("other fields lost: %#v", got.Items[0])
+	}
+}
+
+// Regression: this query used to take only a start, so it silently included
+// today while every other surface on the page stopped at midnight — the same
+// page reporting two different "last 7 days". The window is closed at both
+// ends now.
+func TestStore_NewTeamMembersSince_excludesJoinsAfterTheWindow(t *testing.T) {
+	db := storetest.NewDB(t)
+	s := NewFromDB(db)
+
+	start := nowMillis() - (7 * 24 * 60 * 60 * 1000)
+	end := nowMillis() - (60 * 1000)
+	w := insights.Window{
+		Start: time.UnixMilli(start).UTC(),
+		End:   time.UnixMilli(end).UTC(),
+	}
+
+	for _, m := range []struct {
+		id, name string
+		joinedAt int64
+	}{
+		{"inwindowaaaaaaaaaaaaaaaaaa", "inwindow", start + 1000},
+		{"afterwinaaaaaaaaaaaaaaaaaa", "afterwin", end + 1000},
+		{"beforewinaaaaaaaaaaaaaaaaa", "beforewin", start - 1000},
+	} {
+		seedUser(t, db, m.id, m.name, "", "", "", "", 0)
+		seedTeamMember(t, db, testTeamID, m.id, m.joinedAt, 0)
+	}
+
+	got, err := s.NewTeamMembersSince(context.Background(), testTeamID, w, 0, 10, true)
+	if err != nil {
+		t.Fatalf("NewTeamMembersSince: %v", err)
+	}
+
+	names := map[string]bool{}
+	for _, m := range got.Items {
+		names[m.Username] = true
+	}
+	if !names["inwindow"] {
+		t.Error("member inside the window is missing")
+	}
+	if names["afterwin"] {
+		t.Error("member who joined after the window end was included")
+	}
+	if names["beforewin"] {
+		t.Error("member who joined before the window start was included")
 	}
 }

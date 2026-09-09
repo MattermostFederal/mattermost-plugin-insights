@@ -21,7 +21,7 @@ type Storer interface {
 	TopReactionsForTeamSince(ctx context.Context, teamID, userID string, since int64, page, perPage int) (*insights.TopReactionList, error)
 	TopThreadsForUserSince(ctx context.Context, userID, teamID string, since int64, page, perPage int) (*insights.TopThreadList, error)
 	TopThreadsForTeamSince(ctx context.Context, teamID, userID string, since int64, page, perPage int) (*insights.TopThreadList, error)
-	NewTeamMembersSince(ctx context.Context, teamID string, since int64, page, perPage int, showFullName bool) (*insights.NewTeamMembersList, error)
+	NewTeamMembersSince(ctx context.Context, teamID string, w insights.Window, page, perPage int, showFullName bool) (*insights.NewTeamMembersList, error)
 	TopChannelsForUserSince(ctx context.Context, userID, teamID string, since int64, page, perPage int) (*insights.TopChannelList, error)
 	TopChannelsForTeamSince(ctx context.Context, teamID, userID string, since int64, page, perPage int) (*insights.TopChannelList, error)
 
