@@ -5,6 +5,8 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/mattermost/mattermost/server/public/model"
+
+	"github.com/MattermostFederal/mattermost-plugin-insights/server/insights"
 )
 
 // handleTopReactionsForUser handles
@@ -28,6 +30,11 @@ func (a *API) handleTopReactionsForUser(w http.ResponseWriter, r *http.Request, 
 
 	window, ok := computeWindow(w, params.timeRange, user)
 	if !ok {
+		return
+	}
+
+	if !EnableReactionsAndThreads {
+		writeJSON(w, http.StatusOK, unavailableReactionList())
 		return
 	}
 
@@ -66,10 +73,25 @@ func (a *API) handleTopReactionsForTeam(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 
+	if !EnableReactionsAndThreads {
+		writeJSON(w, http.StatusOK, unavailableReactionList())
+		return
+	}
+
 	res, err := a.store.TopReactionsForTeamSince(r.Context(), teamID, userID, window.StartMillis(), params.page, params.perPage)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	writeJSON(w, http.StatusOK, res)
+}
+
+// unavailableReactionList is the response served while
+// EnableReactionsAndThreads is off: an empty list flagged so the webapp can
+// tell "switched off" from "no reactions".
+func unavailableReactionList() *insights.TopReactionList {
+	return &insights.TopReactionList{
+		ListData: insights.ListData{NotAvailable: true},
+		Items:    []*insights.TopReaction{},
+	}
 }

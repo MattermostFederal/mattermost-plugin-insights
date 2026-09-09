@@ -123,6 +123,7 @@ func TestAPI_TopThreadsForTeam_notMember(t *testing.T) {
 }
 
 func TestAPI_TopThreadsForTeam_returnsHydratedItems(t *testing.T) {
+	skipIfReactionsAndThreadsDisabled(t)
 	auth := &apitest.AuthStub{
 		Users:     map[string]*model.User{testUserID: newRegularUser(testUserID)},
 		License:   professionalLicense(),

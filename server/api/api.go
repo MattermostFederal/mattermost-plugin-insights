@@ -126,6 +126,24 @@ const EnablePersonalInsights = false
 // instead of querying.
 const EnableBoardsAndPlaybooks = false
 
+// EnableReactionsAndThreads controls whether Top Reactions and Top Threads
+// run their queries. Both are off for 1.0.
+//
+// The requirement is that team insights are "cached server wide once a day"
+// with no live aggregations on page load. Neither of these can meet it
+// cheaply: both scope private channels per requester (INSIGHTS_REFERENCE.md
+// §2.1, §2.3), so a shared snapshot needs channel-grain entries and a
+// read-time sum — for reactions that means a (channel, emoji) entry, the
+// largest payload of any insight. Top Threads additionally carries the §3.1
+// N+1 hydration, which needs either stale post content or a new batched
+// lookup.
+//
+// Switching them off satisfies the requirement immediately rather than after
+// the two most expensive pieces of work left, and neither card appears in any
+// stated requirement. Re-enable by flipping this once there is time to put
+// them on the snapshot properly.
+const EnableReactionsAndThreads = false
+
 // New builds the API and wires every route.
 func New(auth AuthProvider, directory Directory, st Storer) *API {
 	return NewWithTelemetry(auth, nil, directory, st, noopTelemetry{})

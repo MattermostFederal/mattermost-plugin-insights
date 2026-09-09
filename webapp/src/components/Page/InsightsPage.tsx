@@ -9,8 +9,6 @@ import type {Scope, TimeRange} from '../../types';
 import {trackInsightsEvent} from '../../utils/telemetry';
 import {InsightCard} from '../Card/InsightCard';
 import {NewTeamMembersCard} from '../Cards/NewTeamMembersCard';
-import {TopReactionsCard} from '../Cards/TopReactionsCard';
-import {TopThreadsCard} from '../Cards/TopThreadsCard';
 import {ScopeSelect} from '../Controls/ScopeSelect';
 import {TimeRangeSelect} from '../Controls/TimeRangeSelect';
 import type {InsightsWidgetType} from '../Modal/InsightsModal';
@@ -57,18 +55,24 @@ interface CardSpec {
     userOnly?: boolean;
 }
 
-// Four cards were removed in 1.0:
+// 1.0 ships the governance table plus one card. Everything else is off:
 //
 //   - Top Channels and Top Inactive Channels are the governance table's rows
 //     sorted two ways. Now that its columns are sortable they add nothing, and
-//     dropping Top Channels also retires the sparkline query — the last
-//     per-request aggregation on the page (INSIGHTS_REFERENCE.md §3.3).
-//   - Top Boards and Top Playbooks read tables owned by other plugins and are
-//     switched off server-side, so they could only ever render empty.
+//     dropping Top Channels also retired the sparkline query
+//     (INSIGHTS_REFERENCE.md §3.3).
+//   - Top Reactions and Top Threads both scope private channels per requester
+//     (§2.1, §2.3), so putting them on the shared daily snapshot needs
+//     channel-grain entries and a read-time sum — the two most expensive
+//     pieces of work left, for cards no requirement asks for. Off behind
+//     EnableReactionsAndThreads until there is time to do it properly.
+//   - Top Boards and Top Playbooks read tables owned by other plugins.
 //   - Top DMs went with personal insights.
+//
+// New Team Members stays because it is the one card that snapshots cheaply:
+// no channel dimension at all, so a single entry per team is correct for
+// everyone (§2.6).
 const cards: CardSpec[] = [
-    {key: 'topReactions', title: 'Top Reactions', subtitle: 'The most used emoji reactions'},
-    {key: 'topThreads', title: 'Top Threads', subtitle: 'The threads with the most replies'},
     {key: 'newTeamMembers', title: 'New Team Members', subtitle: 'People who recently joined the team', teamOnly: true},
 ];
 
@@ -134,49 +138,6 @@ export const InsightsPage: React.FC = () => {
                     onChange={handleRangeChange}
                 />
             </header>
-            <div className='insights-page__grid'>
-                {visible.map((c) => {
-                    const handleOpen = () => openDetails(c);
-                    if (c.key === 'topReactions') {
-                        return (
-                            <TopReactionsCard
-                                key={c.key}
-                                scope={scope}
-                                timeRange={range}
-                                teamId={teamId}
-                                onOpenDetails={handleOpen}
-                            />
-                        );
-                    }
-                    if (c.key === 'topThreads') {
-                        return (
-                            <TopThreadsCard
-                                key={c.key}
-                                scope={scope}
-                                timeRange={range}
-                                teamId={teamId}
-                                onOpenDetails={handleOpen}
-                            />
-                        );
-                    }
-                    if (c.key === 'newTeamMembers') {
-                        return (
-                            <NewTeamMembersCard
-                                key={c.key}
-                                teamId={teamId}
-                                timeRange={range}
-                                onOpenDetails={handleOpen}
-                            />
-                        );
-                    }
-                    return (
-                        <InsightCard
-                            key={c.key}
-                            title={c.title}
-                        />
-                    );
-                })}
-            </div>
             {/*
               * Channel governance sits on the page rather than behind a card,
               * because its value is the full list — the long tail of quiet
@@ -210,6 +171,27 @@ export const InsightsPage: React.FC = () => {
                     teamId={teamId}
                 />
             ) : null}
+            <div className='insights-page__grid'>
+                {visible.map((c) => {
+                    const handleOpen = () => openDetails(c);
+                    if (c.key === 'newTeamMembers') {
+                        return (
+                            <NewTeamMembersCard
+                                key={c.key}
+                                teamId={teamId}
+                                timeRange={range}
+                                onOpenDetails={handleOpen}
+                            />
+                        );
+                    }
+                    return (
+                        <InsightCard
+                            key={c.key}
+                            title={c.title}
+                        />
+                    );
+                })}
+            </div>
         </main>
     );
 };

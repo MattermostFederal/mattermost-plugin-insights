@@ -85,6 +85,64 @@ func TestBoardsAndPlaybooksStubbed(t *testing.T) {
 	}
 }
 
+// skipIfReactionsAndThreadsDisabled marks a test that asserts Top Reactions /
+// Top Threads actually query the store. While EnableReactionsAndThreads is off
+// the handlers short-circuit to an empty NotAvailable list.
+func skipIfReactionsAndThreadsDisabled(t *testing.T) {
+	t.Helper()
+	if !EnableReactionsAndThreads {
+		t.Skip("reactions/threads disabled; see EnableReactionsAndThreads")
+	}
+}
+
+// TestReactionsAndThreadsStubbed pins the 1.0 contract: both routes keep
+// their auth gates and return 200, but query nothing. Switching them off is
+// what makes "no live aggregations on page load" true — neither could be put
+// on the shared snapshot cheaply, because both scope private channels per
+// requester (INSIGHTS_REFERENCE.md §2.1, §2.3).
+func TestReactionsAndThreadsStubbed(t *testing.T) {
+	if EnableReactionsAndThreads {
+		t.Skip("reactions/threads are enabled")
+	}
+	auth := &apitest.AuthStub{
+		Users:     map[string]*model.User{testUserID: {Id: testUserID}},
+		License:   professionalLicense(),
+		TeamPerms: map[string]map[string]bool{testUserID: {testTeamID: true}},
+	}
+	for _, path := range []string{
+		"/api/v1/teams/" + testTeamID + "/top/reactions?time_range=7_day",
+		"/api/v1/teams/" + testTeamID + "/top/threads?time_range=7_day",
+	} {
+		t.Run(path, func(t *testing.T) {
+			store := fullyStubbedStore()
+			api := New(auth, &apitest.DirectoryStub{}, store)
+
+			w := httptest.NewRecorder()
+			api.ServeHTTP(w, newAuthedRequest(http.MethodGet, path, testUserID))
+
+			if w.Code != http.StatusOK {
+				t.Fatalf("status = %d; want 200, body=%s", w.Code, w.Body.String())
+			}
+			var body struct {
+				Items        []json.RawMessage `json:"items"`
+				NotAvailable bool              `json:"not_available"`
+			}
+			if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+				t.Fatalf("decode: %v", err)
+			}
+			if !body.NotAvailable {
+				t.Error("not_available = false; want true")
+			}
+			if len(body.Items) != 0 {
+				t.Errorf("items = %d; want 0", len(body.Items))
+			}
+			if n := len(store.TopReactionsForTeamCalls) + len(store.TopThreadsForTeamCalls); n != 0 {
+				t.Errorf("store was queried %d times; want 0", n)
+			}
+		})
+	}
+}
+
 // gateRoute is one row of the gates matrix. scope is "team" if the route is
 // team-scoped (and therefore subject to the license + view_team gates),
 // "user" otherwise.

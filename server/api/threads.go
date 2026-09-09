@@ -27,6 +27,11 @@ func (a *API) handleTopThreadsForUser(w http.ResponseWriter, r *http.Request, us
 		return
 	}
 
+	if !EnableReactionsAndThreads {
+		writeJSON(w, http.StatusOK, unavailableThreadList())
+		return
+	}
+
 	res, err := a.store.TopThreadsForUserSince(r.Context(), userID, teamID, window.StartMillis(), params.page, params.perPage)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
@@ -59,6 +64,11 @@ func (a *API) handleTopThreadsForTeam(w http.ResponseWriter, r *http.Request, us
 	}
 	window, ok := computeWindow(w, params.timeRange, user)
 	if !ok {
+		return
+	}
+
+	if !EnableReactionsAndThreads {
+		writeJSON(w, http.StatusOK, unavailableThreadList())
 		return
 	}
 
@@ -123,4 +133,13 @@ func uniqueUserIDs(items []*insights.TopThread) []string {
 		ids = append(ids, item.UserID)
 	}
 	return ids
+}
+
+// unavailableThreadList mirrors unavailableReactionList for the Top Threads
+// routes.
+func unavailableThreadList() *insights.TopThreadList {
+	return &insights.TopThreadList{
+		ListData: insights.ListData{NotAvailable: true},
+		Items:    []*insights.TopThread{},
+	}
 }

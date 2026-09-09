@@ -44,6 +44,22 @@ body.insights-product-active {
     grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
 }
 
+// Governance sits above the card grid. `.insights-page` is a flex column with
+// no gap, so the separation from the cards below comes from this margin —
+// matching the 24px the controls strip uses to clear its own bottom border.
+.insights-page__governance {
+    flex-shrink: 0;
+    margin-bottom: 24px;
+}
+
+.insights-page__section-title {
+    margin: 0 0 16px;
+    color: var(--center-channel-color);
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 24px;
+}
+
 // ----- Scope title-dropdown (ported from the deprecated
 // `.insights-title` button + Menu) ---------------------------------------
 

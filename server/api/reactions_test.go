@@ -157,6 +157,7 @@ func TestAPI_TopReactionsForTeam_notMember(t *testing.T) {
 }
 
 func TestAPI_TopReactionsForTeam_returnsItems(t *testing.T) {
+	skipIfReactionsAndThreadsDisabled(t)
 	auth := &apitest.AuthStub{
 		Users:     map[string]*model.User{testUserID: newRegularUser(testUserID)},
 		License:   professionalLicense(),
