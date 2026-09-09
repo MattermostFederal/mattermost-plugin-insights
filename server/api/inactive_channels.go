@@ -21,11 +21,11 @@ func (a *API) handleTopInactiveChannelsForUser(w http.ResponseWriter, r *http.Re
 		return
 	}
 	teamID := r.URL.Query().Get("team_id")
-	since, ok := computeSinceMillis(w, params.timeRange, user)
+	window, ok := computeWindow(w, params.timeRange, user)
 	if !ok {
 		return
 	}
-	res, err := a.store.TopInactiveChannelsForUserSince(r.Context(), userID, teamID, since, params.page, params.perPage)
+	res, err := a.store.TopInactiveChannelsForUserSince(r.Context(), userID, teamID, window.StartMillis(), params.page, params.perPage)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -51,11 +51,11 @@ func (a *API) handleTopInactiveChannelsForTeam(w http.ResponseWriter, r *http.Re
 	if !ok {
 		return
 	}
-	since, ok := computeSinceMillis(w, params.timeRange, user)
+	window, ok := computeWindow(w, params.timeRange, user)
 	if !ok {
 		return
 	}
-	rows, err := a.visibleChannelActivity(r.Context(), userID, teamID, params.timeRange, since)
+	rows, err := a.visibleChannelActivity(r.Context(), userID, teamID, params.timeRange, window)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -67,7 +67,7 @@ func (a *API) handleTopInactiveChannelsForTeam(w http.ResponseWriter, r *http.Re
 	// aggregate is shared with surfaces that want every channel.
 	eligible := make([]*insights.ChannelActivity, 0, len(rows))
 	for _, c := range rows {
-		if c.CreateAt < since {
+		if c.CreateAt < window.StartMillis() {
 			eligible = append(eligible, c)
 		}
 	}

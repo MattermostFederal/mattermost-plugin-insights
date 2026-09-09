@@ -1,10 +1,13 @@
 export type Scope = 'team' | 'my';
 
 // 'today' was retired because "since midnight" is a moving, partial window
-// that a periodically-rebuilt snapshot cannot answer coherently. '1_day' is
-// its replacement: a fixed, closed one-day window, refreshed hourly rather
-// than daily so it stays meaningful.
-// See server/insights/timerange.go (StartOfWindowUTC).
+// that a once-daily snapshot cannot answer coherently. '1_day' replaces it and
+// means *yesterday* — a closed, complete UTC day. Because that window has
+// already ended, one snapshot of it stays correct all day, which is what keeps
+// the cache to a single daily rebuild.
+//
+// The cost: today's activity does not appear anywhere until tomorrow.
+// See server/insights/timerange.go (WindowUTC).
 export type TimeRange = '1_day' | '7_day' | '28_day';
 
 export const TIME_RANGES: TimeRange[] = ['1_day', '7_day', '28_day'];

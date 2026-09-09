@@ -92,8 +92,7 @@ func (a *API) requireRegularUser(w http.ResponseWriter, userID string) (*model.U
 	return user, true
 }
 
-// computeSinceMillis resolves time_range to a start unix-millisecond
-// timestamp at midnight UTC.
+// computeWindow resolves time_range to a closed window of complete UTC days.
 //
 // This used to resolve against the requester's timezone. It no longer can:
 // team insights are served from one snapshot per (team, range) shared across
@@ -102,11 +101,11 @@ func (a *API) requireRegularUser(w http.ResponseWriter, userID string) (*model.U
 //
 // The user argument is retained because every caller already has one and the
 // signature is threaded through all handlers; it is deliberately unused.
-func computeSinceMillis(w http.ResponseWriter, timeRange string, _ *model.User) (int64, bool) {
-	start, err := insights.StartOfWindowUTC(timeRange)
+func computeWindow(w http.ResponseWriter, timeRange string, _ *model.User) (insights.Window, bool) {
+	window, err := insights.WindowUTC(timeRange)
 	if err != nil {
 		writeJSONError(w, http.StatusBadRequest, err.Error())
-		return 0, false
+		return insights.Window{}, false
 	}
-	return start.UnixMilli(), true
+	return window, true
 }

@@ -26,12 +26,12 @@ func (a *API) handleTopReactionsForUser(w http.ResponseWriter, r *http.Request, 
 	}
 	teamID := r.URL.Query().Get("team_id")
 
-	since, ok := computeSinceMillis(w, params.timeRange, user)
+	window, ok := computeWindow(w, params.timeRange, user)
 	if !ok {
 		return
 	}
 
-	res, err := a.store.TopReactionsForUserSince(r.Context(), userID, teamID, since, params.page, params.perPage)
+	res, err := a.store.TopReactionsForUserSince(r.Context(), userID, teamID, window.StartMillis(), params.page, params.perPage)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -61,12 +61,12 @@ func (a *API) handleTopReactionsForTeam(w http.ResponseWriter, r *http.Request, 
 	if !ok {
 		return
 	}
-	since, ok := computeSinceMillis(w, params.timeRange, user)
+	window, ok := computeWindow(w, params.timeRange, user)
 	if !ok {
 		return
 	}
 
-	res, err := a.store.TopReactionsForTeamSince(r.Context(), teamID, userID, since, params.page, params.perPage)
+	res, err := a.store.TopReactionsForTeamSince(r.Context(), teamID, userID, window.StartMillis(), params.page, params.perPage)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return

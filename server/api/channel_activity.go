@@ -3,7 +3,7 @@
 //
 // Shape of a request:
 //
-//	cache[channels:teamID:timeRange]  -> every channel in the team, unfiltered
+//	cache[channels:teamID:range:date] -> every channel in the team, unfiltered
 //	  miss -> store.ChannelActivityForTeam            (once per team per day)
 //	filter to the requester's visible channels        (small indexed query)
 //	sort, then paginate                               (in memory)
@@ -18,7 +18,6 @@ package api
 import (
 	"context"
 	"sort"
-	"time"
 
 	"github.com/mattermost/mattermost/server/public/model"
 
@@ -29,25 +28,6 @@ import (
 // cacheKeyChannelActivity namespaces the team-wide channel aggregate.
 const cacheKeyChannelActivity = "channel_activity"
 
-// shortRangeTTL is how long a 1-day snapshot lives. The requirement was
-// "cached server wide once a day", and for the 7- and 28-day windows that
-// still holds. A one-day window cannot: at a 24-hour refresh the entry would
-// spend most of its life describing a period that has already ended.
-//
-// Refreshing it hourly is affordable precisely because it is the short
-// window — a 1-day aggregation scans a fraction of the Posts a 28-day one
-// does, so the cheapest query is the one that runs most often.
-const shortRangeTTL = time.Hour
-
-// ttlForTimeRange picks how long a snapshot stays fresh. Freshness tracks the
-// window it describes rather than being one global number.
-func ttlForTimeRange(timeRange string) time.Duration {
-	if timeRange == insights.TimeRange1Day {
-		return shortRangeTTL
-	}
-	return cache.DefaultTTL
-}
-
 // visibleChannelActivity returns the team's channel aggregate for the window,
 // reduced to the channels this user is allowed to see.
 //
@@ -55,12 +35,15 @@ func ttlForTimeRange(timeRange string) time.Duration {
 // their members. The cached slice is never mutated — filtering copies into a
 // fresh slice, because the same backing array is handed to every concurrent
 // reader on the team.
-func (a *API) visibleChannelActivity(ctx context.Context, userID, teamID, timeRange string, since int64) ([]*insights.ChannelActivity, error) {
-	all, err := cache.GetOrBuildWithTTL(ctx, a.cache,
-		cache.Key(cacheKeyChannelActivity, teamID, timeRange),
-		ttlForTimeRange(timeRange),
+func (a *API) visibleChannelActivity(ctx context.Context, userID, teamID, timeRange string, w insights.Window) ([]*insights.ChannelActivity, error) {
+	// The window's date is part of the key. Without it an entry built at
+	// 23:00 would keep serving yesterday's window until 23:00 the next day;
+	// with it, every range rolls over cleanly at midnight UTC and the stale
+	// key falls out through the cache's sweep.
+	key := cache.Key(cacheKeyChannelActivity, teamID, timeRange+":"+w.Key())
+	all, err := cache.GetOrBuild(ctx, a.cache, key,
 		func(buildCtx context.Context) ([]*insights.ChannelActivity, error) {
-			return a.store.ChannelActivityForTeam(buildCtx, teamID, since)
+			return a.store.ChannelActivityForTeam(buildCtx, teamID, w)
 		})
 	if err != nil {
 		return nil, err

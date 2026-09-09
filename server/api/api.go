@@ -29,7 +29,7 @@ type Storer interface {
 	// Channels, Top Inactive Channels, and the governance table. It takes no
 	// userID and no pagination so one result can be shared across the team;
 	// PrivateChannelIDsForUser supplies the per-request visibility filter.
-	ChannelActivityForTeam(ctx context.Context, teamID string, since int64) ([]*insights.ChannelActivity, error)
+	ChannelActivityForTeam(ctx context.Context, teamID string, w insights.Window) ([]*insights.ChannelActivity, error)
 	PrivateChannelIDsForUser(ctx context.Context, userID, teamID string) ([]string, error)
 
 	// AttachInactiveChannelParticipants fills in Participants for the rows
@@ -97,9 +97,10 @@ type API struct {
 	telemetry Telemetry
 	router    *mux.Router
 
-	// cache holds the daily team snapshots. Entries are keyed by team and
-	// time range only — never by user — so the expensive aggregation runs
-	// once a day rather than once per page load.
+	// cache holds the daily team snapshots. Entries are keyed by team, time
+	// range, and the window's date — never by user — so the expensive
+	// aggregation runs once a day rather than once per page load, and rolls
+	// over at midnight UTC rather than 24h after it happened to be built.
 	cache *cache.Cache
 }
 

@@ -282,7 +282,7 @@ func (s *StoreStub) TopInactiveChannelsForTeamSince(_ context.Context, teamID, u
 // re-aggregated per request.
 type ChannelActivityCall struct {
 	TeamID string
-	Since  int64
+	Window insights.Window
 }
 
 type PrivateChannelIDsCall struct {
@@ -290,8 +290,8 @@ type PrivateChannelIDsCall struct {
 	TeamID string
 }
 
-func (s *StoreStub) ChannelActivityForTeam(_ context.Context, teamID string, since int64) ([]*insights.ChannelActivity, error) {
-	s.ChannelActivityCalls = append(s.ChannelActivityCalls, ChannelActivityCall{teamID, since})
+func (s *StoreStub) ChannelActivityForTeam(_ context.Context, teamID string, w insights.Window) ([]*insights.ChannelActivity, error) {
+	s.ChannelActivityCalls = append(s.ChannelActivityCalls, ChannelActivityCall{teamID, w})
 	return s.ChannelActivityResult, s.ChannelActivityErr
 }
 

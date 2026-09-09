@@ -23,16 +23,16 @@ func (a *API) handleTopChannelsForUser(w http.ResponseWriter, r *http.Request, u
 		return
 	}
 	teamID := r.URL.Query().Get("team_id")
-	since, ok := computeSinceMillis(w, params.timeRange, user)
+	window, ok := computeWindow(w, params.timeRange, user)
 	if !ok {
 		return
 	}
-	res, err := a.store.TopChannelsForUserSince(r.Context(), userID, teamID, since, params.page, params.perPage)
+	res, err := a.store.TopChannelsForUserSince(r.Context(), userID, teamID, window.StartMillis(), params.page, params.perPage)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	if hydrateErr := a.attachChartData(r.Context(), res, since, params.timeRange, userID, user); hydrateErr != nil {
+	if hydrateErr := a.attachChartData(r.Context(), res, window.StartMillis(), params.timeRange, userID, user); hydrateErr != nil {
 		writeJSONError(w, http.StatusInternalServerError, hydrateErr.Error())
 		return
 	}
@@ -57,14 +57,14 @@ func (a *API) handleTopChannelsForTeam(w http.ResponseWriter, r *http.Request, u
 	if !ok {
 		return
 	}
-	since, ok := computeSinceMillis(w, params.timeRange, user)
+	window, ok := computeWindow(w, params.timeRange, user)
 	if !ok {
 		return
 	}
 	// Served from the daily snapshot rather than a per-request aggregation:
 	// one cached slice per (team, range), filtered to this user's visible
 	// channels, then sorted and paged in memory.
-	rows, err := a.visibleChannelActivity(r.Context(), userID, teamID, params.timeRange, since)
+	rows, err := a.visibleChannelActivity(r.Context(), userID, teamID, params.timeRange, window)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -88,7 +88,7 @@ func (a *API) handleTopChannelsForTeam(w http.ResponseWriter, r *http.Request, u
 	}
 
 	// Team-scoped chart aggregates over all authors (no user filter).
-	if hydrateErr := a.attachChartData(r.Context(), res, since, params.timeRange, "", user); hydrateErr != nil {
+	if hydrateErr := a.attachChartData(r.Context(), res, window.StartMillis(), params.timeRange, "", user); hydrateErr != nil {
 		writeJSONError(w, http.StatusInternalServerError, hydrateErr.Error())
 		return
 	}

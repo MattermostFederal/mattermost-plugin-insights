@@ -9,33 +9,56 @@ import (
 // not one of the supported values.
 var ErrInvalidTimeRange = errors.New("time_range must be one of: 1_day, 7_day, 28_day")
 
-// StartOfWindowUTC returns the inclusive start of the window for the given
-// time_range, as midnight UTC.
+// Window is a closed, immutable span of complete UTC days: Start inclusive,
+// End exclusive.
+//
+// Closedness is what lets one snapshot serve a whole day. An open-ended
+// window ("since midnight N days ago, up to now") keeps moving, so a cached
+// copy is stale the moment it is written. A window that ends at midnight
+// today describes a period that has already finished — rebuild it at 01:00 or
+// at 23:00 and you get the same answer.
+type Window struct {
+	Start time.Time // inclusive
+	End   time.Time // exclusive
+}
+
+// StartMillis and EndMillis are the unix-millisecond bounds the store queries
+// against.
+func (w Window) StartMillis() int64 { return w.Start.UnixMilli() }
+func (w Window) EndMillis() int64   { return w.End.UnixMilli() }
+
+// Key returns a stable identifier for the window, used as part of the cache
+// key so entries roll over at midnight UTC instead of 24 hours after whenever
+// they happened to be built.
+func (w Window) Key() string { return w.Start.Format("2006-01-02") }
+
+// WindowUTC returns the closed window for the given time_range, in complete
+// UTC days ending at midnight today.
 //
 // This replaces the deprecated model.GetStartOfDayForTimeRange (deleted in
-// 26617fcbdc), which evaluated the boundary in the requester's timezone. Two
-// deliberate departures, both forced by serving team insights from a snapshot
+// 26617fcbdc), which evaluated the boundary in the requester's timezone. Three
+// deliberate departures, all forced by serving team insights from a snapshot
 // shared across the team:
 //
 //   - UTC rather than the caller's timezone. One cached entry has to be
 //     correct for everyone on the team; a timezone-dependent window would make
 //     it correct only for whoever happened to populate it.
-//   - "today" is no longer accepted. A snapshot rebuilt once a day cannot
-//     answer a since-midnight question — it would read near-zero just after a
-//     rebuild and a full day stale just before the next one.
-//
-// The boundary is exclusive of today: 7_day starts at midnight seven days ago,
-// so the window covers the seven complete days preceding today. Queries apply
-// no upper bound, so a snapshot also picks up however much of the current day
-// had elapsed when it was built, then holds that value until it is rebuilt.
-func StartOfWindowUTC(timeRange string) (time.Time, error) {
+//   - Closed at midnight today, so the window never includes a partial day and
+//     a snapshot of it cannot drift.
+//   - "today" is no longer accepted. A since-midnight window is open-ended by
+//     definition, which is exactly what a once-daily snapshot cannot answer.
+//     "1_day" replaces it and means yesterday.
+func WindowUTC(timeRange string) (Window, error) {
 	days := NumberOfDaysForTimeRange(timeRange)
 	if days == 0 {
-		return time.Time{}, ErrInvalidTimeRange
+		return Window{}, ErrInvalidTimeRange
 	}
 	now := time.Now().UTC()
 	startOfToday := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
-	return startOfToday.AddDate(0, 0, -days), nil
+	return Window{
+		Start: startOfToday.AddDate(0, 0, -days),
+		End:   startOfToday,
+	}, nil
 }
 
 // NumberOfDaysForTimeRange returns the day count implied by a time_range

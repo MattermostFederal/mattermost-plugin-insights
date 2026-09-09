@@ -24,9 +24,12 @@ interface Props {
     onChange: (range: TimeRange) => void;
 }
 
-// 'Today' was replaced by a fixed one-day window; see webapp/src/types.ts.
+// 'Today' was replaced by 'Yesterday': a closed, complete-day window. The
+// label says Yesterday rather than "last 24 hours" because that is literally
+// what it covers — today's activity is not in the snapshot at all.
+// See webapp/src/types.ts.
 const options: SelectOption[] = [
-    {value: '1_day', label: 'Last 24 hours'},
+    {value: '1_day', label: 'Yesterday'},
     {value: '7_day', label: 'Last 7 days'},
     {value: '28_day', label: 'Last 28 days'},
 ];

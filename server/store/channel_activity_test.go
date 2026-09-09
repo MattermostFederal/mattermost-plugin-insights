@@ -4,6 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"testing"
+	"time"
+
+	"github.com/MattermostFederal/mattermost-plugin-insights/server/insights"
 
 	"github.com/MattermostFederal/mattermost-plugin-insights/server/store/storetest"
 )
@@ -106,10 +109,20 @@ type activityRow struct {
 	Type                               string
 }
 
+// windowFrom turns a fixture's `since` millis into the closed window the
+// store now takes. End is far in the future so the fixtures' "now" posts stay
+// inside the window; the closedness itself is covered in the insights package.
+func windowFrom(since int64) insights.Window {
+	return insights.Window{
+		Start: time.UnixMilli(since).UTC(),
+		End:   time.UnixMilli(since).UTC().AddDate(0, 0, 30),
+	}
+}
+
 func activityByID(t *testing.T, db *sql.DB, since int64) map[string]*activityRow {
 	t.Helper()
 	s := NewFromDB(db)
-	rows, err := s.ChannelActivityForTeam(context.Background(), testTeamID, since)
+	rows, err := s.ChannelActivityForTeam(context.Background(), testTeamID, windowFrom(since))
 	if err != nil {
 		t.Fatalf("ChannelActivityForTeam: %v", err)
 	}

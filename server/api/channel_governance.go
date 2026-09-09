@@ -44,12 +44,12 @@ func (a *API) handleChannelGovernance(w http.ResponseWriter, r *http.Request, us
 	if !ok {
 		return
 	}
-	since, ok := computeSinceMillis(w, params.timeRange, user)
+	window, ok := computeWindow(w, params.timeRange, user)
 	if !ok {
 		return
 	}
 
-	rows, err := a.visibleChannelActivity(r.Context(), userID, teamID, params.timeRange, since)
+	rows, err := a.visibleChannelActivity(r.Context(), userID, teamID, params.timeRange, window)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return

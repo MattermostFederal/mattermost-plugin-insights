@@ -221,18 +221,12 @@ func TestChannelActivity_paginates(t *testing.T) {
 	}
 }
 
-// A one-day window refreshes hourly rather than daily. The requirement was
-// "cached once a day", which holds for the long windows; at a 24-hour TTL a
-// one-day snapshot would spend most of its life describing a period that has
-// already ended.
-func TestChannelActivity_shortRangeRefreshesMoreOften(t *testing.T) {
-	if got := ttlForTimeRange(insights.TimeRange1Day); got != time.Hour {
-		t.Errorf("1_day TTL = %v; want 1h", got)
-	}
-	for _, tr := range []string{insights.TimeRange7Day, insights.TimeRange28Day} {
-		if got := ttlForTimeRange(tr); got != cache.DefaultTTL {
-			t.Errorf("%s TTL = %v; want %v", tr, got, cache.DefaultTTL)
-		}
+// Every range is cached for a full day. That is only sound because the
+// windows are closed: a snapshot of a period that has already ended cannot go
+// stale within the day. See insights.Window.
+func TestChannelActivity_allRangesUseTheDailyTTL(t *testing.T) {
+	if cache.DefaultTTL != 24*time.Hour {
+		t.Errorf("DefaultTTL = %v; want 24h", cache.DefaultTTL)
 	}
 }
 

@@ -49,7 +49,7 @@ func (a *API) handleTopPlaybooksForTeam(w http.ResponseWriter, r *http.Request, 
 	if !ok {
 		return
 	}
-	since, ok := computeSinceMillis(w, params.timeRange, user)
+	window, ok := computeWindow(w, params.timeRange, user)
 	if !ok {
 		return
 	}
@@ -59,7 +59,7 @@ func (a *API) handleTopPlaybooksForTeam(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 
-	res, err := a.store.TopPlaybooksForTeam(r.Context(), teamID, userID, since, params.page, params.perPage)
+	res, err := a.store.TopPlaybooksForTeam(r.Context(), teamID, userID, window.StartMillis(), params.page, params.perPage)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -91,7 +91,7 @@ func (a *API) handleTopPlaybooksForUser(w http.ResponseWriter, r *http.Request, 
 	if !ok {
 		return
 	}
-	since, ok := computeSinceMillis(w, params.timeRange, user)
+	window, ok := computeWindow(w, params.timeRange, user)
 	if !ok {
 		return
 	}
@@ -101,7 +101,7 @@ func (a *API) handleTopPlaybooksForUser(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 
-	res, err := a.store.TopPlaybooksForUser(r.Context(), teamID, userID, since, params.page, params.perPage)
+	res, err := a.store.TopPlaybooksForUser(r.Context(), teamID, userID, window.StartMillis(), params.page, params.perPage)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return

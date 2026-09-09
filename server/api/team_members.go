@@ -33,12 +33,12 @@ func (a *API) handleNewTeamMembers(w http.ResponseWriter, r *http.Request, userI
 	if !ok {
 		return
 	}
-	since, ok := computeSinceMillis(w, params.timeRange, user)
+	window, ok := computeWindow(w, params.timeRange, user)
 	if !ok {
 		return
 	}
 
-	res, err := a.store.NewTeamMembersSince(r.Context(), teamID, since, params.page, params.perPage, a.effectiveShowFullName(user))
+	res, err := a.store.NewTeamMembersSince(r.Context(), teamID, window.StartMillis(), params.page, params.perPage, a.effectiveShowFullName(user))
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return

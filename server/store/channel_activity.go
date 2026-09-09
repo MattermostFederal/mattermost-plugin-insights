@@ -36,9 +36,11 @@ import (
 // surface. This derived table applies the same filters as MessageCount, so
 // "last post" means the last human message.
 //
-// The lookback is bounded by $3 to keep it from scanning the whole Posts
-// history; channels with nothing newer report 0, which the UI renders as
+// The lookback is bounded below by $4 to keep it from scanning the whole
+// Posts history, and above by the window end so the value cannot drift within
+// a day; channels with nothing in range report 0, which the UI renders as
 // "Never".
+
 // lastPostLookbackMillis bounds how far back the "last human message" lookup
 // scans, measured from the window start. Two years is far enough that
 // anything older is indistinguishable from dead for governance purposes, and
@@ -63,7 +65,8 @@ FROM Channels
 LEFT JOIN Posts
 	ON Posts.ChannelId = Channels.Id
 	AND Posts.DeleteAt = 0
-	AND Posts.CreateAt > $2
+	AND Posts.CreateAt >= $2
+	AND Posts.CreateAt < $3
 	AND Posts.Type = ''
 	AND (Posts.Props ->> 'from_bot' IS NULL OR Posts.Props ->> 'from_bot' = 'false')
 	AND (Posts.Props ->> 'from_webhook' IS NULL OR Posts.Props ->> 'from_webhook' = 'false')
@@ -84,7 +87,8 @@ LEFT JOIN (
 		ON PostChannels.Id = Posts.ChannelId
 		AND PostChannels.TeamId = $1
 	WHERE Posts.DeleteAt = 0
-		AND Posts.CreateAt > $3
+		AND Posts.CreateAt >= $4
+		AND Posts.CreateAt < $3
 		AND Posts.Type = ''
 		AND (Posts.Props ->> 'from_bot' IS NULL OR Posts.Props ->> 'from_bot' = 'false')
 		AND (Posts.Props ->> 'from_webhook' IS NULL OR Posts.Props ->> 'from_webhook' = 'false')
@@ -106,11 +110,16 @@ ORDER BY MessageCount DESC, Channels.Name ASC
 // including channels with no posts in the window — a channel with members and
 // zero messages is precisely what the governance table exists to surface.
 //
+// The window is closed (see insights.Window), so the result describes a period
+// that has already ended and is identical no matter when it is computed. That
+// is what makes one snapshot valid for a whole day.
+//
 // Results are unpaginated by design: the caller caches the whole slice and
 // filters, sorts, and pages it in memory.
-func (s *Store) ChannelActivityForTeam(ctx context.Context, teamID string, since int64) ([]*insights.ChannelActivity, error) {
-	lastPostLookback := since - lastPostLookbackMillis
-	rows, err := s.replica.QueryContext(ctx, channelActivityForTeamSQL, teamID, since, lastPostLookback)
+func (s *Store) ChannelActivityForTeam(ctx context.Context, teamID string, w insights.Window) ([]*insights.ChannelActivity, error) {
+	start, end := w.StartMillis(), w.EndMillis()
+	lastPostLookback := start - lastPostLookbackMillis
+	rows, err := s.replica.QueryContext(ctx, channelActivityForTeamSQL, teamID, start, end, lastPostLookback)
 	if err != nil {
 		return nil, err
 	}

@@ -52,7 +52,7 @@ func (a *API) handleTopBoardsForTeam(w http.ResponseWriter, r *http.Request, use
 	if !ok {
 		return
 	}
-	since, ok := computeSinceMillis(w, params.timeRange, user)
+	window, ok := computeWindow(w, params.timeRange, user)
 	if !ok {
 		return
 	}
@@ -68,7 +68,7 @@ func (a *API) handleTopBoardsForTeam(w http.ResponseWriter, r *http.Request, use
 		return
 	}
 
-	res, err := a.store.TopBoardsForTeam(r.Context(), teamID, boardIDs, since, params.page, params.perPage)
+	res, err := a.store.TopBoardsForTeam(r.Context(), teamID, boardIDs, window.StartMillis(), params.page, params.perPage)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -100,7 +100,7 @@ func (a *API) handleTopBoardsForUser(w http.ResponseWriter, r *http.Request, use
 	if !ok {
 		return
 	}
-	since, ok := computeSinceMillis(w, params.timeRange, user)
+	window, ok := computeWindow(w, params.timeRange, user)
 	if !ok {
 		return
 	}
@@ -116,7 +116,7 @@ func (a *API) handleTopBoardsForUser(w http.ResponseWriter, r *http.Request, use
 		return
 	}
 
-	res, err := a.store.TopBoardsForUser(r.Context(), teamID, userID, boardIDs, since, params.page, params.perPage)
+	res, err := a.store.TopBoardsForUser(r.Context(), teamID, userID, boardIDs, window.StartMillis(), params.page, params.perPage)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
