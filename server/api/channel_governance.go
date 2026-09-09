@@ -20,6 +20,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/mattermost/mattermost/server/public/model"
 
+	"github.com/MattermostFederal/mattermost-plugin-insights/server/cache"
 	"github.com/MattermostFederal/mattermost-plugin-insights/server/insights"
 )
 
@@ -55,17 +56,32 @@ func (a *API) handleChannelGovernance(w http.ResponseWriter, r *http.Request, us
 		return
 	}
 
-	// Summarise before paging — the totals describe the team, not the page.
+	// Summarise before filtering and paging — the totals describe the team,
+	// not whatever subset is on screen. Searching for "deploy" should not
+	// change "38 of 412 channels have a purpose".
 	summary := summarizeGovernance(rows)
 
-	sortColumn, ascending := parseSort(r.URL.Query())
+	q := r.URL.Query()
+	rows = filterChannelActivity(rows, q.Get("search"), q.Get("filter"))
+	summary.MatchingChannels = int64(len(rows))
+
+	sortColumn, ascending := parseSort(q)
 	sortChannelActivityBy(rows, sortColumn, ascending)
 	items, hasNext := pageChannelActivity(rows, params.page, params.perPage)
 
+	// Surface how old the snapshot is. With a once-daily rebuild this is the
+	// difference between "this channel is quiet" and "we last looked
+	// yesterday", and without it people read stale numbers as broken ones.
+	generatedAt := int64(0)
+	if builtAt, ok := a.cache.BuiltAt(cache.Key(cacheKeyChannelActivity, teamID, params.timeRange+":"+window.Key())); ok {
+		generatedAt = builtAt.UnixMilli()
+	}
+
 	writeJSON(w, http.StatusOK, &insights.ChannelGovernanceList{
-		ListData: insights.ListData{HasNext: hasNext},
-		Items:    items,
-		Summary:  summary,
+		ListData:    insights.ListData{HasNext: hasNext},
+		Items:       items,
+		Summary:     summary,
+		GeneratedAt: generatedAt,
 	})
 }
 

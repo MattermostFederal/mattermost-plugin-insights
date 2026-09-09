@@ -55,8 +55,16 @@ export const Client = {
 
     // Channel governance: every channel in the team with its activity and
     // metadata, plus team-wide labelling coverage. Team scope only.
-    getChannelGovernance(teamId: string, timeRange: TimeRange, opts: PageOpts & {sort?: string; direction?: string} = {}) {
-        return get<ChannelGovernanceResponse>(`/teams/${teamId}/channel_activity${buildQuery({time_range: timeRange, page: opts.page, per_page: opts.perPage, sort: opts.sort, direction: opts.direction})}`);
+    getChannelGovernance(teamId: string, timeRange: TimeRange, opts: PageOpts & {sort?: string; direction?: string; search?: string; filter?: string} = {}) {
+        return get<ChannelGovernanceResponse>(`/teams/${teamId}/channel_activity${buildQuery({
+            time_range: timeRange,
+            page: opts.page,
+            per_page: opts.perPage,
+            sort: opts.sort,
+            direction: opts.direction,
+            search: opts.search,
+            filter: opts.filter,
+        })}`);
     },
     getMyTopChannels(timeRange: TimeRange, opts: PageOpts & {teamId?: string} = {}) {
         return get<TopChannelsResponse>(`/users/me/top/channels${buildQuery({time_range: timeRange, page: opts.page, per_page: opts.perPage, team_id: opts.teamId})}`);

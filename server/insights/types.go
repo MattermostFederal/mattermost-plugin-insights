@@ -122,6 +122,11 @@ type ChannelGovernanceList struct {
 	ListData
 	Items   []*ChannelActivity       `json:"items"`
 	Summary ChannelGovernanceSummary `json:"summary"`
+
+	// GeneratedAt is when the underlying snapshot was computed, in unix
+	// milliseconds, or 0 if it was built during this request. The UI shows it
+	// because the numbers are up to a day old by design.
+	GeneratedAt int64 `json:"generated_at"`
 }
 
 // ChannelGovernanceSummary answers "have we labelled our channels
@@ -139,6 +144,10 @@ type ChannelGovernanceSummary struct {
 	// so these two free-text fields are the only labelling signal available.
 	WithPurpose int64 `json:"with_purpose"`
 	WithHeader  int64 `json:"with_header"`
+
+	// MatchingChannels is how many rows survived the search and filter. The
+	// other counts deliberately describe the whole team regardless.
+	MatchingChannels int64 `json:"matching_channels"`
 }
 
 // Top Inactive Channels

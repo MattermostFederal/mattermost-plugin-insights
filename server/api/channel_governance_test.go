@@ -230,3 +230,70 @@ func TestGovernance_tiesBreakOnNameRegardlessOfDirection(t *testing.T) {
 		}
 	}
 }
+
+func TestGovernance_searchNarrowsRows(t *testing.T) {
+	api, _ := governanceAPI()
+
+	body := getGovernance(t, api, "time_range=7_day&search=aband")
+	if len(body.Items) != 1 || body.Items[0].Name != "abandoned" {
+		t.Fatalf("got %#v; want just abandoned", body.Items)
+	}
+
+	// Search covers purpose text too, not only names.
+	body = getGovernance(t, api, "time_range=7_day&search=archive")
+	if len(body.Items) != 1 || body.Items[0].Name != "quiet" {
+		t.Fatalf("purpose search got %#v; want quiet", body.Items)
+	}
+}
+
+// Searching narrows the rows but must not move the denominators — "38 of 412
+// have a purpose" describes the team, not the current view.
+func TestGovernance_searchDoesNotChangeTheSummary(t *testing.T) {
+	api, _ := governanceAPI()
+	body := getGovernance(t, api, "time_range=7_day&search=aband")
+
+	if body.Summary.TotalChannels != 3 {
+		t.Errorf("TotalChannels = %d under search; want 3", body.Summary.TotalChannels)
+	}
+	if body.Summary.WithPurpose != 2 {
+		t.Errorf("WithPurpose = %d under search; want 2", body.Summary.WithPurpose)
+	}
+	if body.Summary.MatchingChannels != 1 {
+		t.Errorf("MatchingChannels = %d; want 1", body.Summary.MatchingChannels)
+	}
+}
+
+func TestGovernance_filtersSelectWorkQueues(t *testing.T) {
+	api, _ := governanceAPI()
+
+	cases := map[string][]string{
+		"unlabelled": {"abandoned"},
+		"inactive":   {"abandoned", "quiet"},
+		"public":     {"busy", "abandoned", "quiet"},
+		"private":    {},
+	}
+	for filter, want := range cases {
+		t.Run(filter, func(t *testing.T) {
+			body := getGovernance(t, api, "time_range=7_day&filter="+filter)
+			if len(body.Items) != len(want) {
+				t.Fatalf("got %d rows; want %d", len(body.Items), len(want))
+			}
+			got := map[string]bool{}
+			for _, c := range body.Items {
+				got[c.Name] = true
+			}
+			for _, name := range want {
+				if !got[name] {
+					t.Errorf("%s missing from %v", name, got)
+				}
+			}
+		})
+	}
+}
+
+func TestGovernance_searchIsCaseInsensitive(t *testing.T) {
+	api, _ := governanceAPI()
+	if body := getGovernance(t, api, "time_range=7_day&search=BUSY"); len(body.Items) != 1 {
+		t.Errorf("got %d rows for uppercase search; want 1", len(body.Items))
+	}
+}

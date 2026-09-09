@@ -51,6 +51,7 @@ const summary: ChannelGovernanceSummary = {
     active_channels: 168,
     with_purpose: 38,
     with_header: 12,
+    matching_channels: 412,
 };
 
 test('renders a row per channel with all governance columns', async ({mount}) => {
@@ -88,7 +89,9 @@ test('marks channels with no purpose set', async ({mount}) => {
     await expect(without).toContainText('Not set');
 });
 
-test('renders the team-wide labelling coverage summary', async ({mount}) => {
+// The tiles report the work remaining, not the work done — "374 missing a
+// purpose" is a queue you can act on; "38 labelled" is trivia.
+test('summarises the work remaining across the whole team', async ({mount}) => {
     const component = await mount(
         <ChannelGovernanceList
             items={[busy]}
@@ -96,10 +99,84 @@ test('renders the team-wide labelling coverage summary', async ({mount}) => {
         />,
     );
 
-    // Denominator is the team, not the single row on screen.
-    await expect(component).toContainText('38');
-    await expect(component).toContainText('412');
-    await expect(component).toContainText('168');
+    const tiles = component.locator('[data-testid="governance-summary"]');
+    await expect(tiles).toContainText('412'); // channels in team
+    await expect(tiles).toContainText('244'); // 412 - 168 active
+    await expect(tiles).toContainText('374'); // 412 - 38 labelled
+
+    // Denominators describe the team, not the single row on screen.
+    await expect(tiles).toContainText('9% of 412 labelled');
+});
+
+test('renders a search box and quick filters', async ({mount}) => {
+    let searched: string | undefined;
+    let filtered: string | undefined;
+    const component = await mount(
+        <ChannelGovernanceList
+            items={[busy, abandoned]}
+            summary={summary}
+            search=''
+            onSearch={(v) => {
+                searched = v;
+            }}
+            filter=''
+            onFilter={(v) => {
+                filtered = v;
+            }}
+        />,
+    );
+
+    await component.locator('[data-testid="governance-search"]').fill('deploy');
+    expect(searched).toBe('deploy');
+
+    await component.getByRole('button', {name: 'Missing a purpose'}).click();
+    expect(filtered).toBe('unlabelled');
+});
+
+// A narrowed view must say so, or the page looks like the team shrank.
+test('shows a match count only when the view is narrowed', async ({mount}) => {
+    const all = await mount(
+        <ChannelGovernanceList
+            items={[busy]}
+            summary={summary}
+            onSearch={() => undefined}
+        />,
+    );
+    await expect(all.locator('[data-testid="governance-matchcount"]')).toHaveCount(0);
+
+    await all.unmount();
+
+    const narrowed = await mount(
+        <ChannelGovernanceList
+            items={[busy]}
+            summary={{...summary, matching_channels: 7}}
+            onSearch={() => undefined}
+        />,
+    );
+    await expect(narrowed.locator('[data-testid="governance-matchcount"]')).toContainText('7 of 412');
+});
+
+// The defining property of the product is that numbers are up to a day old.
+test('states how old the snapshot is', async ({mount}) => {
+    const component = await mount(
+        <ChannelGovernanceList
+            items={[busy]}
+            summary={summary}
+            generatedAt={1757289600000}
+        />,
+    );
+    await expect(component.locator('[data-testid="governance-freshness"]')).toContainText('refreshed daily');
+});
+
+test('omits the freshness line when the snapshot was just built', async ({mount}) => {
+    const component = await mount(
+        <ChannelGovernanceList
+            items={[busy]}
+            summary={summary}
+            generatedAt={0}
+        />,
+    );
+    await expect(component.locator('[data-testid="governance-freshness"]')).toHaveCount(0);
 });
 
 test('distinguishes private channels from public', async ({mount}) => {

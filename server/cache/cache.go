@@ -107,6 +107,20 @@ func (c *Cache) Len() int {
 	return len(c.items)
 }
 
+// BuiltAt reports when the entry for key was computed, and whether it is
+// still live. Callers surface it so people can see how old the numbers are —
+// with a once-daily snapshot that is the difference between "quiet channel"
+// and "we haven't looked since yesterday".
+func (c *Cache) BuiltAt(key string) (time.Time, bool) {
+	c.mu.RLock()
+	e, ok := c.items[key]
+	c.mu.RUnlock()
+	if !ok || c.now().Sub(e.builtAt) >= e.ttl {
+		return time.Time{}, false
+	}
+	return e.builtAt, true
+}
+
 func (c *Cache) load(key string) (any, bool) {
 	c.mu.RLock()
 	e, ok := c.items[key]

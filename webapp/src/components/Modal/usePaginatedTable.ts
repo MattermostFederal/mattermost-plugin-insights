@@ -7,6 +7,10 @@ import {useCallback, useEffect, useState} from 'react';
 
 const PER_PAGE = 10;
 
+// The governance table is an audit surface over every channel in the team, so
+// 10 rows a page would mean dozens of pages. Callers pass this instead.
+export const AUDIT_PER_PAGE = 50;
+
 interface PageState<T> {
     items: T[];
     page: number;
@@ -26,13 +30,14 @@ export function usePaginatedTable<T, Resp extends {has_next: boolean; items: T[]
     fetcher: (page: number, perPage: number) => Promise<Resp>,
     deps: readonly unknown[],
     onResponse?: (resp: Resp) => void,
+    perPage: number = PER_PAGE,
 ): PaginatedTableState<T> {
     const [state, setState] = useState<PageState<T>>({items: [], page: 0, hasNext: false, loading: true});
 
     const load = useCallback(async (page: number) => {
         setState((s) => ({...s, loading: true, error: undefined}));
         try {
-            const resp = await fetcher(page, PER_PAGE);
+            const resp = await fetcher(page, perPage);
             setState({items: resp.items, page, hasNext: resp.has_next, loading: false});
             if (onResponse) {
                 onResponse(resp);
@@ -54,7 +59,7 @@ export function usePaginatedTable<T, Resp extends {has_next: boolean; items: T[]
 
     return {
         ...state,
-        perPage: PER_PAGE,
+        perPage,
         nextPage,
         previousPage,
     };

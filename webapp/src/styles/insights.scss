@@ -1679,3 +1679,123 @@ body.insights-product-active {
         color: var(--error-text);
     }
 }
+
+// New team members is a secondary card sitting under the governance table.
+// The deprecated layout used 50px avatars and a three-line info block per
+// person, which made six joiners taller than eleven channels. Compact rows
+// keep the page's emphasis on the table.
+.new-members-compact {
+    .new-members-item {
+        display: flex;
+        align-items: center;
+        padding: 4px 0;
+        gap: 8px;
+    }
+
+    .dm-info {
+        display: flex;
+        min-width: 0;
+        flex: 1;
+        align-items: baseline;
+        gap: 8px;
+    }
+
+    .dm-name {
+        overflow: hidden;
+        font-size: 13px;
+        font-weight: 600;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .dm-role {
+        overflow: hidden;
+        color: rgba(var(--center-channel-color-rgb), 0.56);
+        font-size: 11px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    // "Say hello" is a per-row action that cost a whole line each. Keep it
+    // available but out of the default flow.
+    .channel-message-count {
+        margin-left: auto;
+        opacity: 0;
+        transition: opacity 0.1s ease-in-out;
+    }
+
+    .new-members-item:hover .channel-message-count,
+    .new-members-item:focus-visible .channel-message-count {
+        opacity: 1;
+    }
+}
+
+// Governance toolbar: search + quick filters. Sits between the summary tiles
+// and the table because both narrow the same set.
+.ChannelGovernanceList {
+    .governance-freshness {
+        margin: -8px 0 0;
+        color: rgba(var(--center-channel-color-rgb), 0.56);
+        font-size: 11px;
+    }
+
+    .governance-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .governance-search {
+        min-width: 240px;
+        padding: 6px 10px;
+        border: 1px solid rgba(var(--center-channel-color-rgb), 0.16);
+        border-radius: 4px;
+        background: var(--center-channel-bg);
+        color: var(--center-channel-color);
+        font-size: 13px;
+
+        &:focus {
+            border-color: var(--button-bg);
+            outline: none;
+        }
+    }
+
+    .governance-filters {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .governance-chip {
+        padding: 5px 11px;
+        border: 1px solid rgba(var(--center-channel-color-rgb), 0.16);
+        border-radius: 13px;
+        background: transparent;
+        color: rgba(var(--center-channel-color-rgb), 0.75);
+        cursor: pointer;
+        font-size: 12px;
+
+        &:hover {
+            background: rgba(var(--center-channel-color-rgb), 0.04);
+        }
+
+        &.is-active {
+            border-color: var(--button-bg);
+            background: var(--button-bg);
+            color: var(--button-color);
+        }
+    }
+
+    .governance-matchcount {
+        margin-left: auto;
+        color: rgba(var(--center-channel-color-rgb), 0.56);
+        font-size: 12px;
+    }
+
+    // Denser rows: this is a scanning surface over hundreds of channels, not
+    // a card with five entries.
+    .governance-table td {
+        padding: 5px 12px;
+    }
+}

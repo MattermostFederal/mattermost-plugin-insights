@@ -27,7 +27,19 @@ export interface Props {
     sort?: SortColumn;
     ascending?: boolean;
     onSort?: (column: SortColumn) => void;
+
+    // Search and quick filters. At a few hundred channels, paging is not a
+    // way to find anything — these are how the table is actually used.
+    search?: string;
+    onSearch?: (value: string) => void;
+    filter?: GovernanceFilter;
+    onFilter?: (value: GovernanceFilter) => void;
+
+    // When the snapshot was built, unix millis. 0 means "just now".
+    generatedAt?: number;
 }
+
+export type GovernanceFilter = '' | 'unlabelled' | 'inactive' | 'private' | 'public';
 
 function formatDate(unixMillis: number): string {
     if (!unixMillis) {
@@ -54,6 +66,8 @@ function formatLastPost(unixMillis: number): React.ReactNode {
 
 const percent = (n: number, total: number): number => (total ? Math.round((n / total) * 100) : 0);
 
+// The tiles state the work remaining rather than the work done: "6 need a
+// purpose" is a queue, "5 are labelled" is trivia.
 const CoverageSummary: React.FC<{summary: ChannelGovernanceSummary}> = ({summary}) => (
     <div
         className='governance-summary'
@@ -69,24 +83,24 @@ const CoverageSummary: React.FC<{summary: ChannelGovernanceSummary}> = ({summary
             </span>
         </div>
         <div className='governance-stat'>
-            <span className='governance-stat__value'>{summary.active_channels}</span>
+            <span className='governance-stat__value'>{summary.total_channels - summary.active_channels}</span>
             <span className='governance-stat__label'>
                 <FormattedMessage
-                    id='insights.governance.activeChannels'
-                    defaultMessage='Active in window'
+                    id='insights.governance.inactiveChannels'
+                    defaultMessage='No posts in window'
                 />
             </span>
         </div>
         <div className='governance-stat'>
-            <span className='governance-stat__value'>{summary.with_purpose}</span>
+            <span className='governance-stat__value'>{summary.total_channels - summary.with_purpose}</span>
             <span className='governance-stat__label'>
                 <FormattedMessage
-                    id='insights.governance.withPurpose'
-                    defaultMessage='Labelled with a purpose'
+                    id='insights.governance.missingPurpose'
+                    defaultMessage='Missing a purpose'
                 />
             </span>
             <span className='governance-stat__sub'>
-                {`${percent(summary.with_purpose, summary.total_channels)}% of ${summary.total_channels}`}
+                {`${percent(summary.with_purpose, summary.total_channels)}% of ${summary.total_channels} labelled`}
             </span>
         </div>
     </div>
@@ -129,6 +143,94 @@ const SortableHeader: React.FC<HeaderProps> = ({column, label, numeric, sort, as
     );
 };
 
+const FILTERS: Array<{value: GovernanceFilter; label: string}> = [
+    {value: '', label: 'All'},
+    {value: 'unlabelled', label: 'Missing a purpose'},
+    {value: 'inactive', label: 'No posts in window'},
+    {value: 'private', label: 'Private'},
+];
+
+interface ToolbarProps {
+    search?: string;
+    onSearch?: (value: string) => void;
+    filter?: GovernanceFilter;
+    onFilter?: (value: GovernanceFilter) => void;
+    matching?: number;
+    total?: number;
+}
+
+const Toolbar: React.FC<ToolbarProps> = ({search, onSearch, filter, onFilter, matching, total}) => {
+    if (!onSearch && !onFilter) {
+        return null;
+    }
+    const narrowed = matching !== undefined && total !== undefined && matching !== total;
+    return (
+        <div className='governance-toolbar'>
+            {onSearch && (
+                <input
+                    className='governance-search'
+                    type='search'
+                    value={search ?? ''}
+                    placeholder='Search channels and purposes'
+                    aria-label='Search channels and purposes'
+                    data-testid='governance-search'
+                    onChange={(e) => onSearch(e.target.value)}
+                />
+            )}
+            {onFilter && (
+                <div
+                    className='governance-filters'
+                    role='group'
+                    aria-label='Filter channels'
+                >
+                    {FILTERS.map((f) => (
+                        <button
+                            key={f.value || 'all'}
+                            type='button'
+                            className={`governance-chip${(filter ?? '') === f.value ? ' is-active' : ''}`}
+                            aria-pressed={(filter ?? '') === f.value}
+                            onClick={() => onFilter(f.value)}
+                        >
+                            {f.label}
+                        </button>
+                    ))}
+                </div>
+            )}
+            {narrowed && (
+                <span
+                    className='governance-matchcount'
+                    data-testid='governance-matchcount'
+                >
+                    {`${matching} of ${total}`}
+                </span>
+            )}
+        </div>
+    );
+};
+
+// The numbers are up to a day old by design. Saying so is the difference
+// between "this channel is quiet" and "we last looked yesterday".
+const Freshness: React.FC<{generatedAt?: number}> = ({generatedAt}) => {
+    if (!generatedAt) {
+        return null;
+    }
+    const when = new Date(generatedAt).toLocaleString([], {
+        year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit',
+    });
+    return (
+        <p
+            className='governance-freshness'
+            data-testid='governance-freshness'
+        >
+            <FormattedMessage
+                id='insights.governance.freshness'
+                defaultMessage='Data as of {when} · refreshed daily'
+                values={{when}}
+            />
+        </p>
+    );
+};
+
 const NotSet: React.FC = () => (
     <span className='governance-notset'>
         <span
@@ -144,6 +246,7 @@ const NotSet: React.FC = () => (
 
 const ChannelGovernanceListComponent: React.FC<Props> = ({
     items, summary, loading, error, onSelectChannel, sort, ascending, onSort,
+    search, onSearch, filter, onFilter, generatedAt,
 }) => {
     const rows = useMemo(() => items.map((c) => {
         const isPrivate = c.type === 'P';
@@ -217,6 +320,15 @@ const ChannelGovernanceListComponent: React.FC<Props> = ({
     return (
         <div className='ChannelGovernanceList'>
             {summary && <CoverageSummary summary={summary}/>}
+            <Freshness generatedAt={generatedAt}/>
+            <Toolbar
+                search={search}
+                onSearch={onSearch}
+                filter={filter}
+                onFilter={onFilter}
+                matching={summary?.matching_channels}
+                total={summary?.total_channels}
+            />
             {items.length === 0 ? (
                 <div
                     className='governance-empty'

@@ -53,6 +53,10 @@ export interface ChannelGovernanceSummary {
     active_channels: number;
     with_purpose: number;
     with_header: number;
+
+    // How many rows survived the search/filter. The other counts describe the
+    // whole team regardless, so searching does not move the denominators.
+    matching_channels: number;
 }
 
 export interface TopThread {
@@ -151,4 +155,8 @@ export type TopPlaybooksResponse = PaginatedResponse<TopPlaybook>;
 export type TopBoardsResponse = PaginatedResponse<TopBoard>;
 export type ChannelGovernanceResponse = PaginatedResponse<ChannelActivity> & {
     summary: ChannelGovernanceSummary;
+
+    // When the snapshot was built, unix millis. Surfaced because the numbers
+    // are up to a day old by design.
+    generated_at: number;
 };

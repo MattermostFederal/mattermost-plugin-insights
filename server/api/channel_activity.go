@@ -19,6 +19,7 @@ import (
 	"context"
 	"net/url"
 	"sort"
+	"strings"
 
 	"github.com/mattermost/mattermost/server/public/model"
 
@@ -151,6 +152,58 @@ func parseSort(q url.Values) (column string, ascending bool) {
 	// other column defaults to descending, which is what "top" means.
 	ascending = q.Get("direction") == "asc"
 	return column, ascending
+}
+
+// Filters for the governance table's work queues. The rows are already in
+// memory, so filtering costs nothing at the database — which is what makes it
+// worth offering rather than making people page through hundreds of channels
+// looking for the handful that need attention.
+const (
+	FilterUnlabelled = "unlabelled" // no purpose set
+	FilterInactive   = "inactive"   // no posts in the window
+	FilterPrivate    = "private"
+	FilterPublic     = "public"
+)
+
+// filterChannelActivity narrows rows by a free-text search over name, display
+// name and purpose, plus an optional named filter. Both are applied before
+// paging, and the summary is computed before either, so the totals keep
+// describing the whole team.
+func filterChannelActivity(rows []*insights.ChannelActivity, search, filter string) []*insights.ChannelActivity {
+	if search == "" && filter == "" {
+		return rows
+	}
+	needle := strings.ToLower(strings.TrimSpace(search))
+
+	out := make([]*insights.ChannelActivity, 0, len(rows))
+	for _, c := range rows {
+		if needle != "" {
+			hay := strings.ToLower(c.Name + " " + c.DisplayName + " " + c.Purpose)
+			if !strings.Contains(hay, needle) {
+				continue
+			}
+		}
+		switch filter {
+		case FilterUnlabelled:
+			if c.Purpose != "" {
+				continue
+			}
+		case FilterInactive:
+			if c.MessageCount > 0 {
+				continue
+			}
+		case FilterPrivate:
+			if c.Type != model.ChannelTypePrivate {
+				continue
+			}
+		case FilterPublic:
+			if c.Type != model.ChannelTypeOpen {
+				continue
+			}
+		}
+		out = append(out, c)
+	}
+	return out
 }
 
 // pageChannelActivity applies the limit+1 convention used everywhere else in
