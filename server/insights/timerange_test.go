@@ -89,8 +89,8 @@ func TestWindow_KeyIsTheStartDate(t *testing.T) {
 	}
 }
 
-// "today" is a moving, open-ended window — the one shape a periodically
-// rebuilt snapshot genuinely cannot answer.
+// The "today" range is a moving, open-ended window — the one shape a
+// periodically rebuilt snapshot genuinely cannot answer.
 func TestWindowUTC_rejectsToday(t *testing.T) {
 	if _, err := WindowUTC("today"); err == nil {
 		t.Fatal("expected 'today' to be rejected; got nil error")

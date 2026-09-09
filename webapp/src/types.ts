@@ -1,7 +1,7 @@
 export type Scope = 'team' | 'my';
 
-// 'today' was retired because "since midnight" is a moving, partial window
-// that a once-daily snapshot cannot answer coherently. '1_day' replaces it and
+// The 'today' range was retired because "since midnight" is a moving, partial
+// window a once-daily snapshot cannot answer coherently. '1_day' replaces it and
 // means *yesterday* — a closed, complete UTC day. Because that window has
 // already ended, one snapshot of it stays correct all day, which is what keeps
 // the cache to a single daily rebuild.

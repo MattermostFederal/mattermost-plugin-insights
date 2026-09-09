@@ -250,8 +250,8 @@ func TestChannelActivity_oneDayRangeIsServed(t *testing.T) {
 	}
 }
 
-// "today" stays rejected: a moving since-midnight window is what the snapshot
-// genuinely cannot answer, as distinct from a fixed one-day window.
+// The "today" range stays rejected: a moving since-midnight window is what
+// the snapshot genuinely cannot answer, as distinct from a fixed one-day one.
 func TestChannelActivity_todayStillRejected(t *testing.T) {
 	api, _ := activityAPI()
 	w := httptest.NewRecorder()
