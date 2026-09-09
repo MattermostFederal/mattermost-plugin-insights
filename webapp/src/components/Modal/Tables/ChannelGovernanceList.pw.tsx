@@ -156,3 +156,45 @@ test('clicking a row calls onSelectChannel with that channel', async ({mount}) =
     await component.locator('[data-testid="governance-row-project-halcyon"]').click();
     expect(picked).toBe('project-halcyon');
 });
+
+test('column headers are clickable and report the chosen column', async ({mount}) => {
+    let picked: string | undefined;
+    const component = await mount(
+        <ChannelGovernanceList
+            items={[busy, abandoned]}
+            sort='posts'
+            ascending={false}
+            onSort={(c) => {
+                picked = c;
+            }}
+        />,
+    );
+
+    await component.getByRole('button', {name: /Members/}).click();
+    expect(picked).toBe('members');
+});
+
+// Sorting is what lets the quiet channels be found at all — without it they
+// sit on the last page of a fixed descending list.
+test('marks the active sort column for assistive tech', async ({mount}) => {
+    const component = await mount(
+        <ChannelGovernanceList
+            items={[busy, abandoned]}
+            sort='members'
+            ascending={true}
+            onSort={() => undefined}
+        />,
+    );
+
+    const active = component.locator('th[aria-sort="ascending"]');
+    await expect(active).toHaveCount(1);
+    await expect(active).toContainText('Members');
+});
+
+// Without an onSort handler the headers stay plain text, so the component is
+// still usable read-only.
+test('renders plain headers when sorting is not wired up', async ({mount}) => {
+    const component = await mount(<ChannelGovernanceList items={[busy]}/>);
+    await expect(component.locator('th[aria-sort]')).toHaveCount(0);
+    await expect(component).toContainText('Members');
+});

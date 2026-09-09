@@ -12,12 +12,21 @@ import {FormattedMessage} from 'react-intl';
 
 import type {ChannelActivity, ChannelGovernanceSummary} from '../../../types';
 
+export type SortColumn = 'posts' | 'active_users' | 'members' | 'last_post' | 'created' | 'name';
+
 export interface Props {
     items: ChannelActivity[];
     summary?: ChannelGovernanceSummary;
     loading?: boolean;
     error?: string;
     onSelectChannel?: (channel: ChannelActivity) => void;
+
+    // Sorting is server-side because it has to order the whole team's
+    // channels, not just the page on screen. It is cheap there: the rows are
+    // already in memory in the daily snapshot, so no query runs.
+    sort?: SortColumn;
+    ascending?: boolean;
+    onSort?: (column: SortColumn) => void;
 }
 
 function formatDate(unixMillis: number): string {
@@ -83,6 +92,43 @@ const CoverageSummary: React.FC<{summary: ChannelGovernanceSummary}> = ({summary
     </div>
 );
 
+interface HeaderProps {
+    column: SortColumn;
+    label: React.ReactNode;
+    numeric?: boolean;
+    sort?: SortColumn;
+    ascending?: boolean;
+    onSort?: (column: SortColumn) => void;
+}
+
+const SortableHeader: React.FC<HeaderProps> = ({column, label, numeric, sort, ascending, onSort}) => {
+    const active = sort === column;
+    if (!onSort) {
+        return <th className={numeric ? 'governance-cell--num' : undefined}>{label}</th>;
+    }
+
+    let ariaSort: 'ascending' | 'descending' | 'none' = 'none';
+    if (active) {
+        ariaSort = ascending ? 'ascending' : 'descending';
+    }
+
+    return (
+        <th
+            className={`${numeric ? 'governance-cell--num ' : ''}governance-th--sortable${active ? ' is-active' : ''}`}
+            aria-sort={ariaSort}
+        >
+            <button
+                type='button'
+                className='governance-sort-button'
+                onClick={() => onSort(column)}
+            >
+                <span>{label}</span>
+                {active && <i className={`icon icon-chevron-${ascending ? 'up' : 'down'}`}/>}
+            </button>
+        </th>
+    );
+};
+
 const NotSet: React.FC = () => (
     <span className='governance-notset'>
         <span
@@ -96,7 +142,9 @@ const NotSet: React.FC = () => (
     </span>
 );
 
-const ChannelGovernanceListComponent: React.FC<Props> = ({items, summary, loading, error, onSelectChannel}) => {
+const ChannelGovernanceListComponent: React.FC<Props> = ({
+    items, summary, loading, error, onSelectChannel, sort, ascending, onSort,
+}) => {
     const rows = useMemo(() => items.map((c) => {
         const isPrivate = c.type === 'P';
         return (
@@ -183,48 +231,75 @@ const ChannelGovernanceListComponent: React.FC<Props> = ({items, summary, loadin
                 <table className='governance-table'>
                     <thead>
                         <tr>
-                            <th>
-                                <FormattedMessage
+                            <SortableHeader
+                                column='name'
+                                sort={sort}
+                                ascending={ascending}
+                                onSort={onSort}
+                                label={<FormattedMessage
                                     id='insights.governance.channel'
                                     defaultMessage='Channel'
-                                />
-                            </th>
+                                       />}
+                            />
                             <th>
                                 <FormattedMessage
                                     id='insights.governance.type'
                                     defaultMessage='Type'
                                 />
                             </th>
-                            <th className='governance-cell--num'>
-                                <FormattedMessage
+                            <SortableHeader
+                                column='posts'
+                                numeric={true}
+                                sort={sort}
+                                ascending={ascending}
+                                onSort={onSort}
+                                label={<FormattedMessage
                                     id='insights.governance.posts'
                                     defaultMessage='Posts'
-                                />
-                            </th>
-                            <th className='governance-cell--num'>
-                                <FormattedMessage
+                                       />}
+                            />
+                            <SortableHeader
+                                column='active_users'
+                                numeric={true}
+                                sort={sort}
+                                ascending={ascending}
+                                onSort={onSort}
+                                label={<FormattedMessage
                                     id='insights.governance.activeUsers'
                                     defaultMessage='Active users'
-                                />
-                            </th>
-                            <th className='governance-cell--num'>
-                                <FormattedMessage
+                                       />}
+                            />
+                            <SortableHeader
+                                column='members'
+                                numeric={true}
+                                sort={sort}
+                                ascending={ascending}
+                                onSort={onSort}
+                                label={<FormattedMessage
                                     id='insights.governance.members'
                                     defaultMessage='Members'
-                                />
-                            </th>
-                            <th>
-                                <FormattedMessage
+                                       />}
+                            />
+                            <SortableHeader
+                                column='last_post'
+                                sort={sort}
+                                ascending={ascending}
+                                onSort={onSort}
+                                label={<FormattedMessage
                                     id='insights.governance.lastPost'
                                     defaultMessage='Last post'
-                                />
-                            </th>
-                            <th>
-                                <FormattedMessage
+                                       />}
+                            />
+                            <SortableHeader
+                                column='created'
+                                sort={sort}
+                                ascending={ascending}
+                                onSort={onSort}
+                                label={<FormattedMessage
                                     id='insights.governance.created'
                                     defaultMessage='Created'
-                                />
-                            </th>
+                                       />}
+                            />
                             <th>
                                 <FormattedMessage
                                     id='insights.governance.purpose'

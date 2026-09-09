@@ -163,3 +163,70 @@ func TestGovernance_respectsPrivateChannelVisibility(t *testing.T) {
 		t.Errorf("Summary.TotalChannels = %d; want 3 — the summary must count visible channels only", body.Summary.TotalChannels)
 	}
 }
+
+func TestGovernance_sortsByRequestedColumn(t *testing.T) {
+	api, _ := governanceAPI()
+
+	cases := []struct {
+		query string
+		want  []string
+	}{
+		// Default: busiest first.
+		{"time_range=7_day", []string{"busy", "abandoned", "quiet"}},
+		// Quiet end first — the reason sorting exists, since otherwise the
+		// dead channels sit on the last page.
+		{"time_range=7_day&sort=posts&direction=asc", []string{"abandoned", "quiet", "busy"}},
+		{"time_range=7_day&sort=members", []string{"abandoned", "busy", "quiet"}},
+		{"time_range=7_day&sort=members&direction=asc", []string{"quiet", "busy", "abandoned"}},
+		{"time_range=7_day&sort=name&direction=asc", []string{"abandoned", "busy", "quiet"}},
+		{"time_range=7_day&sort=last_post&direction=asc", []string{"quiet", "abandoned", "busy"}},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.query, func(t *testing.T) {
+			body := getGovernance(t, api, tc.query)
+			got := make([]string, 0, len(body.Items))
+			for _, c := range body.Items {
+				got = append(got, c.Name)
+			}
+			if len(got) != len(tc.want) {
+				t.Fatalf("got %v; want %v", got, tc.want)
+			}
+			for i := range tc.want {
+				if got[i] != tc.want[i] {
+					t.Fatalf("got %v; want %v", got, tc.want)
+				}
+			}
+		})
+	}
+}
+
+// An unrecognised column must not error — a stale bookmark should still
+// render a sensible table.
+func TestGovernance_unknownSortFallsBackToPosts(t *testing.T) {
+	api, _ := governanceAPI()
+	body := getGovernance(t, api, "time_range=7_day&sort=nonsense")
+	if len(body.Items) == 0 || body.Items[0].Name != "busy" {
+		t.Errorf("got %#v; want the post-count ordering", body.Items)
+	}
+}
+
+// Ties break on name in both directions, so paging is stable: without a total
+// order a row could appear on two pages or none.
+func TestGovernance_tiesBreakOnNameRegardlessOfDirection(t *testing.T) {
+	api, _ := governanceAPI()
+
+	for _, dir := range []string{"asc", "desc"} {
+		// abandoned and quiet both have 0 posts and 0 active users.
+		body := getGovernance(t, api, "time_range=7_day&sort=active_users&direction="+dir)
+		var seen []string
+		for _, c := range body.Items {
+			if c.ActivePosters == 0 {
+				seen = append(seen, c.Name)
+			}
+		}
+		if len(seen) != 2 || seen[0] != "abandoned" || seen[1] != "quiet" {
+			t.Errorf("direction=%s: tied rows ordered %v; want abandoned then quiet", dir, seen)
+		}
+	}
+}

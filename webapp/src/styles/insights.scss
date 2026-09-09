@@ -1570,6 +1570,38 @@ body.insights-product-active {
         }
     }
 
+    .governance-th--sortable {
+        padding: 0;
+
+        &.is-active .governance-sort-button {
+            color: var(--center-channel-color);
+        }
+    }
+
+    .governance-sort-button {
+        display: inline-flex;
+        width: 100%;
+        align-items: center;
+        justify-content: inherit;
+        padding: 8px 12px;
+        border: 0;
+        background: transparent;
+        color: inherit;
+        cursor: pointer;
+        font: inherit;
+        gap: 4px;
+        letter-spacing: inherit;
+        text-transform: inherit;
+
+        &:hover {
+            background: rgba(var(--center-channel-color-rgb), 0.04);
+        }
+    }
+
+    .governance-cell--num .governance-sort-button {
+        justify-content: flex-end;
+    }
+
     .governance-row {
         cursor: pointer;
 

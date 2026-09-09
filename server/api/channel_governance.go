@@ -58,7 +58,8 @@ func (a *API) handleChannelGovernance(w http.ResponseWriter, r *http.Request, us
 	// Summarise before paging — the totals describe the team, not the page.
 	summary := summarizeGovernance(rows)
 
-	sortChannelActivity(rows, false)
+	sortColumn, ascending := parseSort(r.URL.Query())
+	sortChannelActivityBy(rows, sortColumn, ascending)
 	items, hasNext := pageChannelActivity(rows, params.page, params.perPage)
 
 	writeJSON(w, http.StatusOK, &insights.ChannelGovernanceList{
