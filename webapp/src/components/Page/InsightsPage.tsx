@@ -9,11 +9,6 @@ import type {Scope, TimeRange} from '../../types';
 import {trackInsightsEvent} from '../../utils/telemetry';
 import {InsightCard} from '../Card/InsightCard';
 import {NewTeamMembersCard} from '../Cards/NewTeamMembersCard';
-import {TopBoardsCard} from '../Cards/TopBoardsCard';
-import {TopChannelsCard} from '../Cards/TopChannelsCard';
-import {TopDMsCard} from '../Cards/TopDMsCard';
-import {TopInactiveChannelsCard} from '../Cards/TopInactiveChannelsCard';
-import {TopPlaybooksCard} from '../Cards/TopPlaybooksCard';
 import {TopReactionsCard} from '../Cards/TopReactionsCard';
 import {TopThreadsCard} from '../Cards/TopThreadsCard';
 import {ScopeSelect} from '../Controls/ScopeSelect';
@@ -62,14 +57,18 @@ interface CardSpec {
     userOnly?: boolean;
 }
 
+// Four cards were removed in 1.0:
+//
+//   - Top Channels and Top Inactive Channels are the governance table's rows
+//     sorted two ways. Now that its columns are sortable they add nothing, and
+//     dropping Top Channels also retires the sparkline query — the last
+//     per-request aggregation on the page (INSIGHTS_REFERENCE.md §3.3).
+//   - Top Boards and Top Playbooks read tables owned by other plugins and are
+//     switched off server-side, so they could only ever render empty.
+//   - Top DMs went with personal insights.
 const cards: CardSpec[] = [
-    {key: 'topChannels', title: 'Top Channels', subtitle: 'The most active channels'},
     {key: 'topReactions', title: 'Top Reactions', subtitle: 'The most used emoji reactions'},
     {key: 'topThreads', title: 'Top Threads', subtitle: 'The threads with the most replies'},
-    {key: 'topDms', title: 'Top DMs', subtitle: 'Your most active direct messages', userOnly: true},
-    {key: 'topInactiveChannels', title: 'Top Inactive Channels', subtitle: 'The channels with the least activity'},
-    {key: 'topBoards', title: 'Top Boards', subtitle: 'Most active boards for the team'},
-    {key: 'topPlaybooks', title: 'Top Playbooks', subtitle: 'Playbooks with the most runs'},
     {key: 'newTeamMembers', title: 'New Team Members', subtitle: 'People who recently joined the team', teamOnly: true},
 ];
 
@@ -138,17 +137,6 @@ export const InsightsPage: React.FC = () => {
             <div className='insights-page__grid'>
                 {visible.map((c) => {
                     const handleOpen = () => openDetails(c);
-                    if (c.key === 'topChannels') {
-                        return (
-                            <TopChannelsCard
-                                key={c.key}
-                                scope={scope}
-                                timeRange={range}
-                                teamId={teamId}
-                                onOpenDetails={handleOpen}
-                            />
-                        );
-                    }
                     if (c.key === 'topReactions') {
                         return (
                             <TopReactionsCard
@@ -163,49 +151,6 @@ export const InsightsPage: React.FC = () => {
                     if (c.key === 'topThreads') {
                         return (
                             <TopThreadsCard
-                                key={c.key}
-                                scope={scope}
-                                timeRange={range}
-                                teamId={teamId}
-                                onOpenDetails={handleOpen}
-                            />
-                        );
-                    }
-                    if (c.key === 'topDms') {
-                        return (
-                            <TopDMsCard
-                                key={c.key}
-                                teamId={teamId}
-                                timeRange={range}
-                                onOpenDetails={handleOpen}
-                            />
-                        );
-                    }
-                    if (c.key === 'topInactiveChannels') {
-                        return (
-                            <TopInactiveChannelsCard
-                                key={c.key}
-                                scope={scope}
-                                timeRange={range}
-                                teamId={teamId}
-                                onOpenDetails={handleOpen}
-                            />
-                        );
-                    }
-                    if (c.key === 'topBoards') {
-                        return (
-                            <TopBoardsCard
-                                key={c.key}
-                                scope={scope}
-                                timeRange={range}
-                                teamId={teamId}
-                                onOpenDetails={handleOpen}
-                            />
-                        );
-                    }
-                    if (c.key === 'topPlaybooks') {
-                        return (
-                            <TopPlaybooksCard
                                 key={c.key}
                                 scope={scope}
                                 timeRange={range}
