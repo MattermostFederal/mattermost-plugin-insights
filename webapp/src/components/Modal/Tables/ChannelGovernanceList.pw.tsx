@@ -351,13 +351,15 @@ test('stat tile falls back gracefully when timeRange is omitted', async ({mount}
 
 // The filter chip label must match the stat tile so the two surfaces agree.
 
-test('inactive filter chip label matches the stat tile for each window', async ({mount}) => {
-    for (const [timeRange, expected] of [
-        ['1_day', 'No posts since yesterday'],
-        ['7_day', 'No posts in the last 7 days'],
-        ['28_day', 'No posts in the last 28 days'],
-        [undefined, 'No posts in selected window'],
-    ] as const) {
+// One test per window rather than a loop of mounts, so a failure names the
+// window that broke instead of the whole set.
+for (const [timeRange, expected] of [
+    ['1_day', 'No posts since yesterday'],
+    ['7_day', 'No posts in the last 7 days'],
+    ['28_day', 'No posts in the last 28 days'],
+    [undefined, 'No posts in selected window'],
+] as const) {
+    test(`inactive filter chip label matches the stat tile for ${timeRange ?? 'an unset window'}`, async ({mount}) => {
         const component = await mount(
             <ChannelGovernanceList
                 items={[busy]}
@@ -368,9 +370,8 @@ test('inactive filter chip label matches the stat tile for each window', async (
             />,
         );
         await expect(component.getByRole('button', {name: expected})).toBeVisible();
-        await component.unmount();
-    }
-});
+    });
+}
 
 test('clicking the inactive filter chip fires onFilter with "inactive"', async ({mount}) => {
     let filtered: string | undefined;
