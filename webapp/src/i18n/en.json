@@ -10,7 +10,7 @@
     "insights.governance.created": "Created",
     "insights.governance.empty": "No channels to show for this time range.",
     "insights.governance.freshness": "Data as of {when} · refreshed daily",
-    "insights.governance.inactiveChannels": "No posts in window",
+    "insights.governance.inactiveChannels": "No posts since yesterday",
     "insights.governance.lastPost": "Last post",
     "insights.governance.loading": "Loading channels…",
     "insights.governance.members": "Members",

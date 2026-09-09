@@ -10,7 +10,7 @@
 import React, {memo, useMemo} from 'react';
 import {FormattedMessage} from 'react-intl';
 
-import type {ChannelActivity, ChannelGovernanceSummary} from '../../../types';
+import type {ChannelActivity, ChannelGovernanceSummary, TimeRange} from '../../../types';
 
 export type SortColumn = 'posts' | 'active_users' | 'members' | 'last_post' | 'created' | 'name';
 
@@ -42,9 +42,24 @@ export interface Props {
     // Members here so it joins the stat row instead of floating below the
     // table; this component stays unaware of what is in it.
     trailingTile?: React.ReactNode;
+
+    timeRange?: TimeRange;
 }
 
 export type GovernanceFilter = '' | 'unlabelled' | 'inactive' | 'private' | 'public';
+
+function noPostsLabel(timeRange?: TimeRange): string {
+    switch (timeRange) {
+    case '1_day':
+        return 'No posts since yesterday';
+    case '7_day':
+        return 'No posts in the last 7 days';
+    case '28_day':
+        return 'No posts in the last 28 days';
+    default:
+        return 'No posts in selected window';
+    }
+}
 
 function formatDate(unixMillis: number): string {
     if (!unixMillis) {
@@ -73,7 +88,7 @@ const percent = (n: number, total: number): number => (total ? Math.round((n / t
 
 // The tiles state the work remaining rather than the work done: "6 need a
 // purpose" is a queue, "5 are labelled" is trivia.
-const CoverageSummary: React.FC<{summary: ChannelGovernanceSummary; trailingTile?: React.ReactNode}> = ({summary, trailingTile}) => (
+const CoverageSummary: React.FC<{summary: ChannelGovernanceSummary; trailingTile?: React.ReactNode; timeRange?: TimeRange}> = ({summary, trailingTile, timeRange}) => (
     <div
         className={`governance-summary${trailingTile ? ' governance-summary--four' : ''}`}
         data-testid='governance-summary'
@@ -90,10 +105,7 @@ const CoverageSummary: React.FC<{summary: ChannelGovernanceSummary; trailingTile
         <div className='governance-stat'>
             <span className='governance-stat__value'>{summary.total_channels - summary.active_channels}</span>
             <span className='governance-stat__label'>
-                <FormattedMessage
-                    id='insights.governance.inactiveChannels'
-                    defaultMessage='No posts in window'
-                />
+                {noPostsLabel(timeRange)}
             </span>
         </div>
         <div className='governance-stat'>
@@ -149,12 +161,14 @@ const SortableHeader: React.FC<HeaderProps> = ({column, label, numeric, sort, as
     );
 };
 
-const FILTERS: Array<{value: GovernanceFilter; label: string}> = [
-    {value: '', label: 'All'},
-    {value: 'unlabelled', label: 'Missing a purpose'},
-    {value: 'inactive', label: 'No posts in window'},
-    {value: 'private', label: 'Private'},
-];
+function buildFilters(timeRange?: TimeRange): Array<{value: GovernanceFilter; label: string}> {
+    return [
+        {value: '', label: 'All'},
+        {value: 'unlabelled', label: 'Missing a purpose'},
+        {value: 'inactive', label: noPostsLabel(timeRange)},
+        {value: 'private', label: 'Private'},
+    ];
+}
 
 interface ToolbarProps {
     search?: string;
@@ -163,9 +177,10 @@ interface ToolbarProps {
     onFilter?: (value: GovernanceFilter) => void;
     matching?: number;
     total?: number;
+    timeRange?: TimeRange;
 }
 
-const Toolbar: React.FC<ToolbarProps> = ({search, onSearch, filter, onFilter, matching, total}) => {
+const Toolbar: React.FC<ToolbarProps> = ({search, onSearch, filter, onFilter, matching, total, timeRange}) => {
     if (!onSearch && !onFilter) {
         return null;
     }
@@ -189,7 +204,7 @@ const Toolbar: React.FC<ToolbarProps> = ({search, onSearch, filter, onFilter, ma
                     role='group'
                     aria-label='Filter channels'
                 >
-                    {FILTERS.map((f) => (
+                    {buildFilters(timeRange).map((f) => (
                         <button
                             key={f.value || 'all'}
                             type='button'
@@ -252,7 +267,7 @@ const NotSet: React.FC = () => (
 
 const ChannelGovernanceListComponent: React.FC<Props> = ({
     items, summary, loading, error, onSelectChannel, sort, ascending, onSort,
-    search, onSearch, filter, onFilter, generatedAt, trailingTile,
+    search, onSearch, filter, onFilter, generatedAt, trailingTile, timeRange,
 }) => {
     const rows = useMemo(() => items.map((c) => {
         const isPrivate = c.type === 'P';
@@ -329,6 +344,7 @@ const ChannelGovernanceListComponent: React.FC<Props> = ({
                 <CoverageSummary
                     summary={summary}
                     trailingTile={trailingTile}
+                    timeRange={timeRange}
                 />
             )}
             <Freshness generatedAt={generatedAt}/>
@@ -339,6 +355,7 @@ const ChannelGovernanceListComponent: React.FC<Props> = ({
                 onFilter={onFilter}
                 matching={summary?.matching_channels}
                 total={summary?.total_channels}
+                timeRange={timeRange}
             />
             {items.length === 0 ? (
                 <div

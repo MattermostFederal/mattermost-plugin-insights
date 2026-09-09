@@ -300,3 +300,91 @@ test('summary row stays three-up when no trailing tile is given', async ({mount}
     );
     await expect(component.locator('.governance-summary--four')).toHaveCount(0);
 });
+
+// --- timeRange-aware "no posts" label ---
+// The stat tile and inactive filter chip both derive from noPostsLabel(), so
+// each TimeRange branch is exercised once through the rendered output rather
+// than calling the private function directly.
+
+test('stat tile reads "No posts since yesterday" for the 1-day window', async ({mount}) => {
+    const component = await mount(
+        <ChannelGovernanceList
+            items={[busy]}
+            summary={summary}
+            timeRange='1_day'
+        />,
+    );
+    await expect(component.locator('[data-testid="governance-summary"]')).toContainText('No posts since yesterday');
+});
+
+test('stat tile reads "No posts in the last 7 days" for the 7-day window', async ({mount}) => {
+    const component = await mount(
+        <ChannelGovernanceList
+            items={[busy]}
+            summary={summary}
+            timeRange='7_day'
+        />,
+    );
+    await expect(component.locator('[data-testid="governance-summary"]')).toContainText('No posts in the last 7 days');
+});
+
+test('stat tile reads "No posts in the last 28 days" for the 28-day window', async ({mount}) => {
+    const component = await mount(
+        <ChannelGovernanceList
+            items={[busy]}
+            summary={summary}
+            timeRange='28_day'
+        />,
+    );
+    await expect(component.locator('[data-testid="governance-summary"]')).toContainText('No posts in the last 28 days');
+});
+
+test('stat tile falls back gracefully when timeRange is omitted', async ({mount}) => {
+    const component = await mount(
+        <ChannelGovernanceList
+            items={[busy]}
+            summary={summary}
+        />,
+    );
+    await expect(component.locator('[data-testid="governance-summary"]')).toContainText('No posts in selected window');
+});
+
+// The filter chip label must match the stat tile so the two surfaces agree.
+
+test('inactive filter chip label matches the stat tile for each window', async ({mount}) => {
+    for (const [timeRange, expected] of [
+        ['1_day', 'No posts since yesterday'],
+        ['7_day', 'No posts in the last 7 days'],
+        ['28_day', 'No posts in the last 28 days'],
+        [undefined, 'No posts in selected window'],
+    ] as const) {
+        const component = await mount(
+            <ChannelGovernanceList
+                items={[busy]}
+                summary={summary}
+                filter=''
+                onFilter={() => undefined}
+                timeRange={timeRange}
+            />,
+        );
+        await expect(component.getByRole('button', {name: expected})).toBeVisible();
+        await component.unmount();
+    }
+});
+
+test('clicking the inactive filter chip fires onFilter with "inactive"', async ({mount}) => {
+    let filtered: string | undefined;
+    const component = await mount(
+        <ChannelGovernanceList
+            items={[busy]}
+            summary={summary}
+            filter=''
+            onFilter={(v) => {
+                filtered = v;
+            }}
+            timeRange='1_day'
+        />,
+    );
+    await component.getByRole('button', {name: 'No posts since yesterday'}).click();
+    expect(filtered).toBe('inactive');
+});

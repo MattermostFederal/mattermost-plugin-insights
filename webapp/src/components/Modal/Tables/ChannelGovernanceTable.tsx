@@ -103,6 +103,7 @@ const ChannelGovernanceTableComponent: React.FC<GovernanceTableProps> = ({timeRa
             onFilter={setFilter}
             generatedAt={generatedAt}
             trailingTile={trailingTile}
+            timeRange={timeRange}
         />
     );
 };
