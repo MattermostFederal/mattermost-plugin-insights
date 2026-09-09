@@ -29,16 +29,26 @@ function displayName(m: NewTeamMember): string {
     return fl || m.username;
 }
 
+const MILLIS_PER_DAY = 86_400_000;
+
+function startOfLocalDay(millis: number): number {
+    const d = new Date(millis);
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+}
+
+// Counts whole calendar days, not elapsed hours. A rolling 24-hour difference
+// labelled with calendar words reads wrong at the edges — somebody who joined
+// at 23:00 yesterday would show as "Today" at 09:00 this morning.
 function relativeTime(unixMillis: number): string {
     if (!unixMillis) {
         return '';
     }
-    const days = Math.floor((Date.now() - unixMillis) / 86_400_000);
-    if (days < 1) {
-        return 'today';
+    const days = Math.round((startOfLocalDay(Date.now()) - startOfLocalDay(unixMillis)) / MILLIS_PER_DAY);
+    if (days <= 0) {
+        return 'Today';
     }
     if (days === 1) {
-        return 'yesterday';
+        return 'Yesterday';
     }
     return `${days} days ago`;
 }

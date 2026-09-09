@@ -20,7 +20,7 @@ const members = [
         last_name: '',
         position: '',
         nickname: '',
-        create_at: Date.now(),
+        create_at: Date.now() - 86_400_000,
     },
 ];
 
@@ -87,5 +87,21 @@ test('renders position and a relative join date', async ({mount, page}) => {
     );
     await expect(component).toContainText('Principal Engineer');
     await expect(component).toContainText('2 days ago');
-    await expect(component).toContainText('today');
+});
+
+// Calendar words are capitalised like the cell values they are, and counted
+// in whole days rather than elapsed hours — joining at 23:00 yesterday must
+// not read as "Today" the next morning.
+test('capitalises Yesterday and counts calendar days', async ({mount, page}) => {
+    await routeMembers(page);
+    const component = await mount(
+        <NewMembersTable
+            scope='team'
+            timeRange='7_day'
+            teamId='team1'
+        />,
+    );
+    await expect(component).toContainText('Yesterday');
+    await expect(component).not.toContainText('yesterday');
+    await expect(component).not.toContainText('today');
 });
