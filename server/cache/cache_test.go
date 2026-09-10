@@ -156,25 +156,48 @@ func TestGetOrBuild_doesNotCacheFailures(t *testing.T) {
 	}
 }
 
-// A client that disconnects mid-rebuild must not cancel the work that other
-// waiters are blocked on, so build gets a context detached from the caller's.
-func TestGetOrBuild_buildSurvivesCallerCancellation(t *testing.T) {
+// A client that disconnects mid-rebuild returns promptly, while the detached
+// build continues and populates the cache for the next caller.
+func TestGetOrBuild_canceledWaiterReturnsWhileBuildContinues(t *testing.T) {
 	c := New(Options{TTL: time.Hour, Now: newClock().Now})
 
 	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
+	started := make(chan struct{})
+	release := make(chan struct{})
+	built := make(chan struct{})
+	result := make(chan error, 1)
+	go func() {
+		_, err := GetOrBuild(ctx, c, "k", func(buildCtx context.Context) (string, error) {
+			close(started)
+			<-release
+			defer close(built)
+			if err := buildCtx.Err(); err != nil {
+				return "", err
+			}
+			return "built", nil
+		})
+		result <- err
+	}()
 
-	got, err := GetOrBuild(ctx, c, "k", func(buildCtx context.Context) (string, error) {
+	<-started
+	cancel()
+	if err := <-result; !errors.Is(err, context.Canceled) {
+		t.Fatalf("canceled waiter err = %v; want context.Canceled", err)
+	}
+
+	close(release)
+	<-built
+	got, err := GetOrBuild(context.Background(), c, "k", func(buildCtx context.Context) (string, error) {
 		if err := buildCtx.Err(); err != nil {
 			return "", err
 		}
-		return "built", nil
+		return "rebuilt", nil
 	})
 	if err != nil {
-		t.Fatalf("build saw a cancelled context: %v", err)
+		t.Fatalf("cached read: %v", err)
 	}
 	if got != "built" {
-		t.Errorf("got %q; want %q", got, "built")
+		t.Errorf("got %q; want the completed detached build", got)
 	}
 }
 

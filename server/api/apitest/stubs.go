@@ -160,7 +160,8 @@ type BoardsForUserCall struct {
 
 type PostCountsByDurationCall struct {
 	ChannelIDs       []string
-	SinceUnixMillis  int64
+	StartUnixMillis  int64
+	EndUnixMillis    int64
 	UserID, Grouping string
 	Location         string
 }
@@ -191,7 +192,7 @@ type InactiveChannelsForTeamCall struct {
 
 type ChannelsForUserCall struct {
 	UserID, TeamID string
-	Since          int64
+	Start, End     int64
 	Page, PerPage  int
 }
 
@@ -257,8 +258,8 @@ func (s *StoreStub) NewTeamMembersSince(_ context.Context, teamID string, w insi
 	return s.NewTeamMembersResult, s.NewTeamMembersErr
 }
 
-func (s *StoreStub) TopChannelsForUserSince(_ context.Context, userID, teamID string, since int64, page, perPage int) (*insights.TopChannelList, error) {
-	s.TopChannelsForUserCalls = append(s.TopChannelsForUserCalls, ChannelsForUserCall{userID, teamID, since, page, perPage})
+func (s *StoreStub) TopChannelsForUserSince(_ context.Context, userID, teamID string, start, end int64, page, perPage int) (*insights.TopChannelList, error) {
+	s.TopChannelsForUserCalls = append(s.TopChannelsForUserCalls, ChannelsForUserCall{userID, teamID, start, end, page, perPage})
 	return s.TopChannelsForUserResult, s.TopChannelsForUserErr
 }
 
@@ -328,8 +329,8 @@ func (s *StoreStub) OutgoingDMCounts(_ context.Context, userID string, channelID
 	return s.OutgoingDMCountsResult, s.OutgoingDMCountsErr
 }
 
-func (s *StoreStub) PostCountsByDuration(_ context.Context, channelIDs []string, since int64, userID, grouping, location string) ([]*insights.DurationPostCount, error) {
-	s.PostCountsByDurationCalls = append(s.PostCountsByDurationCalls, PostCountsByDurationCall{channelIDs, since, userID, grouping, location})
+func (s *StoreStub) PostCountsByDuration(_ context.Context, channelIDs []string, start, end int64, userID, grouping, location string) ([]*insights.DurationPostCount, error) {
+	s.PostCountsByDurationCalls = append(s.PostCountsByDurationCalls, PostCountsByDurationCall{channelIDs, start, end, userID, grouping, location})
 	return s.PostCountsByDurationResult, s.PostCountsByDurationErr
 }
 

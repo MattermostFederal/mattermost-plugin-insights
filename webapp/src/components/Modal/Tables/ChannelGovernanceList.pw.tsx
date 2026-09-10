@@ -219,7 +219,7 @@ test('renders an empty state', async ({mount}) => {
     await expect(component.locator('[data-testid="governance-empty"]')).toBeVisible();
 });
 
-test('clicking a row calls onSelectChannel with that channel', async ({mount}) => {
+test('channel selection uses a keyboard-operable control', async ({mount}) => {
     let picked: string | undefined;
     const component = await mount(
         <ChannelGovernanceList
@@ -230,7 +230,12 @@ test('clicking a row calls onSelectChannel with that channel', async ({mount}) =
         />,
     );
 
-    await component.locator('[data-testid="governance-row-project-halcyon"]').click();
+    await component.locator('[data-testid="governance-row-project-halcyon"] .governance-cell--num').first().click();
+    expect(picked).toBeUndefined();
+
+    const channelButton = component.getByRole('button', {name: 'Project Halcyon'});
+    await channelButton.focus();
+    await channelButton.press('Enter');
     expect(picked).toBe('project-halcyon');
 });
 

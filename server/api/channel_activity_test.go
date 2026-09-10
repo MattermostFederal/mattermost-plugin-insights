@@ -221,6 +221,16 @@ func TestChannelActivity_paginates(t *testing.T) {
 	}
 }
 
+func TestPageChannelActivity_outOfRangePageDoesNotOverflow(t *testing.T) {
+	rows := []*insights.ChannelActivity{{ID: pubChanID}}
+	maxInt := int(^uint(0) >> 1)
+
+	items, hasNext := pageChannelActivity(rows, maxInt, 2)
+	if len(items) != 0 || hasNext {
+		t.Errorf("pageChannelActivity returned %d items, hasNext=%v; want an empty page", len(items), hasNext)
+	}
+}
+
 // Every range is cached for a full day. That is only sound because the
 // windows are closed: a snapshot of a period that has already ended cannot go
 // stale within the day. See insights.Window.

@@ -3,6 +3,12 @@ import React from 'react';
 
 import {NewMembersTable} from './NewMembersTable';
 
+const daysAgo = (days: number): number => {
+    const date = new Date();
+    date.setDate(date.getDate() - days);
+    return date.getTime();
+};
+
 const members = [
     {
         id: 'u1',
@@ -11,7 +17,7 @@ const members = [
         last_name: 'Hopper',
         position: 'Principal Engineer',
         nickname: '',
-        create_at: Date.now() - (2 * 86_400_000),
+        create_at: daysAgo(2),
     },
     {
         id: 'u2',
@@ -20,7 +26,7 @@ const members = [
         last_name: '',
         position: '',
         nickname: '',
-        create_at: Date.now() - 86_400_000,
+        create_at: daysAgo(1),
     },
 ];
 

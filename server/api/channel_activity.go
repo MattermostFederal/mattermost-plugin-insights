@@ -226,6 +226,9 @@ func filterChannelActivity(rows []*insights.ChannelActivity, search, filter stri
 // this plugin: take one more row than asked for, and report has_next from
 // whether it existed.
 func pageChannelActivity(rows []*insights.ChannelActivity, page, perPage int) (items []*insights.ChannelActivity, hasNext bool) {
+	if page > len(rows)/perPage {
+		return []*insights.ChannelActivity{}, false
+	}
 	offset := page * perPage
 	if offset >= len(rows) {
 		return []*insights.ChannelActivity{}, false

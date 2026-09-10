@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/MattermostFederal/mattermost-plugin-insights/server/store/storetest"
 )
@@ -213,7 +214,7 @@ func TestStore_TopChannelsForUserSince_onlyOwnPostsInMemberChannels(t *testing.T
 		seedPostBy(t, db, postIDs(), testUser1ID, "chancaaaaaaaaaaaaaaaaaaaaa", now)
 	}
 
-	got, err := s.TopChannelsForUserSince(context.Background(), testUser1ID, "", since, 0, 5)
+	got, err := s.TopChannelsForUserSince(context.Background(), testUser1ID, "", since, now+1, 0, 5)
 	if err != nil {
 		t.Fatalf("TopChannelsForUserSince: %v", err)
 	}
@@ -252,7 +253,7 @@ func TestStore_TopChannelsForUserSince_teamFilter(t *testing.T) {
 		seedPostBy(t, db, postIDs(), testUser1ID, "choutaaaaaaaaaaaaaaaaaaaaa", now)
 	}
 
-	got, err := s.TopChannelsForUserSince(context.Background(), testUser1ID, testTeamID, since, 0, 10)
+	got, err := s.TopChannelsForUserSince(context.Background(), testUser1ID, testTeamID, since, now+1, 0, 10)
 	if err != nil {
 		t.Fatalf("TopChannelsForUserSince: %v", err)
 	}
@@ -263,6 +264,29 @@ func TestStore_TopChannelsForUserSince_teamFilter(t *testing.T) {
 	}
 	if len(got.Items) != 1 || got.Items[0].ID != "chinaaaaaaaaaaaaaaaaaaaaaa" {
 		t.Fatalf("got %#v; want exactly the in-team channel", got.Items)
+	}
+}
+
+func TestStore_TopChannelsForUserSince_usesClosedWindow(t *testing.T) {
+	db := storetest.NewDB(t)
+	s := NewFromDB(db)
+
+	start := time.Date(2024, 1, 10, 0, 0, 0, 0, time.UTC).UnixMilli()
+	end := time.Date(2024, 1, 11, 0, 0, 0, 0, time.UTC).UnixMilli()
+	channelID := "windowaaaaaaaaaaaaaaaaaaaa"
+	seedChannel(t, db, channelID, "O", testTeamID, "window")
+	mustExec(t, db, `INSERT INTO channelmembers (channelid, userid) VALUES ($1, $2)`, channelID, testUser1ID)
+	postIDs := postIDGen('w')
+	for _, createAt := range []int64{start - 1, start, end - 1, end} {
+		seedPostBy(t, db, postIDs(), testUser1ID, channelID, createAt)
+	}
+
+	got, err := s.TopChannelsForUserSince(context.Background(), testUser1ID, testTeamID, start, end, 0, 10)
+	if err != nil {
+		t.Fatalf("TopChannelsForUserSince: %v", err)
+	}
+	if len(got.Items) != 1 || got.Items[0].MessageCount != 2 {
+		t.Fatalf("got %#v; want the posts at start and immediately before end", got.Items)
 	}
 }
 

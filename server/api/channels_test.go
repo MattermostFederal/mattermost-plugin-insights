@@ -101,9 +101,9 @@ func TestAPI_TopChannelsForUser_attachesChartData(t *testing.T) {
 	if body.PostCountByDuration == nil {
 		t.Fatalf("PostCountByDuration must be initialized")
 	}
-	// Today => hour buckets => map has keys formatted as RFC3339.
+	// Chart data is always day-bucketed for the closed snapshot window.
 	if len(body.PostCountByDuration) == 0 {
-		t.Errorf("expected at least one hour bucket; got empty map")
+		t.Errorf("expected at least one day bucket; got empty map")
 	}
 	// store.PostCountsByDuration must have been called with the user filter
 	// (this is a my-scope endpoint).
@@ -114,8 +114,18 @@ func TestAPI_TopChannelsForUser_attachesChartData(t *testing.T) {
 	if call.UserID != testUserID {
 		t.Errorf("user-scope endpoint should pass user filter; got UserID=%q", call.UserID)
 	}
-	if call.Grouping != insights.PostsByHour {
-		t.Errorf("today range should use hour grouping; got %q", call.Grouping)
+	if call.Grouping != insights.PostsByDay {
+		t.Errorf("chart data should use day grouping; got %q", call.Grouping)
+	}
+	if call.EndUnixMillis <= call.StartUnixMillis {
+		t.Errorf("chart window = [%d, %d); want a positive closed window", call.StartUnixMillis, call.EndUnixMillis)
+	}
+	if len(store.TopChannelsForUserCalls) != 1 {
+		t.Fatalf("expected 1 TopChannelsForUserSince call; got %d", len(store.TopChannelsForUserCalls))
+	}
+	channelCall := store.TopChannelsForUserCalls[0]
+	if channelCall.Start != call.StartUnixMillis || channelCall.End != call.EndUnixMillis {
+		t.Errorf("channel window = [%d, %d), chart window = [%d, %d)", channelCall.Start, channelCall.End, call.StartUnixMillis, call.EndUnixMillis)
 	}
 }
 

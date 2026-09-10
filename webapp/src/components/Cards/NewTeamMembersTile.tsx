@@ -38,17 +38,34 @@ const NewTeamMembersTileComponent: React.FC<Props> = ({teamId, timeRange, onOpen
 
     const faces = slice.items.slice(0, FACE_PILE_LIMIT);
     const overflow = slice.totalCount - faces.length;
+    const hasRetainedData = slice.status === 'error' && slice.fetchedAt !== undefined;
+    const unavailable = slice.status === 'error' && !hasRetainedData;
 
     const body = (
         <>
-            <span className='governance-stat__value'>{slice.totalCount}</span>
+            <span className='governance-stat__value'>{unavailable ? '—' : slice.totalCount}</span>
             <span className='governance-stat__label'>
-                <FormattedMessage
-                    id='insights.governance.newMembers'
-                    defaultMessage='Joined the team'
-                />
+                {unavailable ? (
+                    <FormattedMessage
+                        id='insights.newMembers.failed'
+                        defaultMessage='Failed to load new members'
+                    />
+                ) : (
+                    <FormattedMessage
+                        id='insights.governance.newMembers'
+                        defaultMessage='Joined the team'
+                    />
+                )}
             </span>
-            {faces.length > 0 && (
+            {hasRetainedData && (
+                <span className='governance-stat__sub'>
+                    <FormattedMessage
+                        id='insights.governance.staleData'
+                        defaultMessage='Stale data'
+                    />
+                </span>
+            )}
+            {!unavailable && faces.length > 0 && (
                 <span
                     className='governance-facepile'
                     data-testid='governance-facepile'

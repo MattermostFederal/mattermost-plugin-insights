@@ -191,7 +191,7 @@ func GetOrBuildWithTTL[T any](ctx context.Context, c *Cache, key string, ttl tim
 		}
 	}
 
-	v, err, _ := c.group.Do(key, func() (any, error) {
+	resultCh := c.group.DoChan(key, func() (any, error) {
 		// Re-check: a build that completed while this call waited on the
 		// singleflight lock should not be immediately repeated.
 		if v, ok := c.load(key); ok {
@@ -210,11 +210,18 @@ func GetOrBuildWithTTL[T any](ctx context.Context, c *Cache, key string, ttl tim
 		c.store(key, built, ttl)
 		return built, nil
 	})
-	if err != nil {
-		return zero, err
+
+	var result singleflight.Result
+	select {
+	case <-ctx.Done():
+		return zero, ctx.Err()
+	case result = <-resultCh:
+	}
+	if result.Err != nil {
+		return zero, result.Err
 	}
 
-	typed, ok := v.(T)
+	typed, ok := result.Val.(T)
 	if !ok {
 		return zero, nil
 	}

@@ -130,7 +130,10 @@ export function getEffectiveTeamId(state: unknown): string {
     }
     const teams = root.entities?.teams?.teams ?? {};
     const myMembers = root.entities?.teams?.myMembers;
-    const joined = Object.keys(teams).filter((id) => (myMembers ? Boolean(myMembers[id]) : true));
+    if (myMembers === undefined) {
+        return '';
+    }
+    const joined = Object.keys(teams).filter((id) => Boolean(myMembers[id]));
     return joined.sort()[0] ?? '';
 }
 

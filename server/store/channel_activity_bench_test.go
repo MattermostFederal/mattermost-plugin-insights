@@ -531,7 +531,7 @@ func benchCorpus() string {
 	}
 	var sb strings.Builder
 	for sb.Len() < 8192 {
-		// nolint:gosec // G602 false positive: x % len(words) is always in range.
+		//nolint:gosec // G602 false positive: x % len(words) is always in range.
 		sb.WriteString(words[sb.Len()%len(words)])
 		sb.WriteByte(' ')
 	}
@@ -561,7 +561,7 @@ func copyIn(b *testing.B, db *sql.DB, table string, columns []string, rows func(
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	// nolint:staticcheck // SA1019: pq.CopyIn is deprecated with no drop-in
+	//nolint:staticcheck // SA1019: pq.CopyIn is deprecated with no drop-in
 	// replacement; hand-building the quoted COPY statement is the alternative.
 	stmt, err := tx.Prepare(pq.CopyIn(table, columns...))
 	if err != nil {

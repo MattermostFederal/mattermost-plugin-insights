@@ -278,11 +278,23 @@ const ChannelGovernanceListComponent: React.FC<Props> = ({
                 key={c.id}
                 data-testid={`governance-row-${c.name}`}
                 className='governance-row'
-                onClick={onSelectChannel ? () => onSelectChannel(c) : undefined}
             >
                 <td className='governance-cell governance-cell--name'>
-                    <i className={`icon icon-${isPrivate ? 'lock-outline' : 'globe'}`}/>
-                    <span>{c.display_name || c.name}</span>
+                    {onSelectChannel ? (
+                        <button
+                            type='button'
+                            className='governance-channel-button'
+                            onClick={() => onSelectChannel(c)}
+                        >
+                            <i className={`icon icon-${isPrivate ? 'lock-outline' : 'globe'}`}/>
+                            <span>{c.display_name || c.name}</span>
+                        </button>
+                    ) : (
+                        <>
+                            <i className={`icon icon-${isPrivate ? 'lock-outline' : 'globe'}`}/>
+                            <span>{c.display_name || c.name}</span>
+                        </>
+                    )}
                 </td>
                 <td className='governance-cell'>
                     {isPrivate ? (

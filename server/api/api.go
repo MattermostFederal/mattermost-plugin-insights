@@ -22,7 +22,7 @@ type Storer interface {
 	TopThreadsForUserSince(ctx context.Context, userID, teamID string, since int64, page, perPage int) (*insights.TopThreadList, error)
 	TopThreadsForTeamSince(ctx context.Context, teamID, userID string, since int64, page, perPage int) (*insights.TopThreadList, error)
 	NewTeamMembersSince(ctx context.Context, teamID string, w insights.Window, page, perPage int, showFullName bool) (*insights.NewTeamMembersList, error)
-	TopChannelsForUserSince(ctx context.Context, userID, teamID string, since int64, page, perPage int) (*insights.TopChannelList, error)
+	TopChannelsForUserSince(ctx context.Context, userID, teamID string, start, end int64, page, perPage int) (*insights.TopChannelList, error)
 	TopChannelsForTeamSince(ctx context.Context, teamID, userID string, since int64, page, perPage int) (*insights.TopChannelList, error)
 
 	// ChannelActivityForTeam is the cached team-wide aggregate behind Top
@@ -40,7 +40,7 @@ type Storer interface {
 	TopInactiveChannelsForTeamSince(ctx context.Context, teamID, userID string, since int64, page, perPage int) (*insights.TopInactiveChannelList, error)
 	TopDMsForUserSince(ctx context.Context, userID string, since int64, page, perPage int) (*insights.TopDMList, error)
 	OutgoingDMCounts(ctx context.Context, userID string, channelIDs []string, since int64) (map[string]int64, error)
-	PostCountsByDuration(ctx context.Context, channelIDs []string, sinceUnixMillis int64, userID, grouping, location string) ([]*insights.DurationPostCount, error)
+	PostCountsByDuration(ctx context.Context, channelIDs []string, startUnixMillis, endUnixMillis int64, userID, grouping, location string) ([]*insights.DurationPostCount, error)
 
 	// Top Boards: BoardIDsForUserInTeam computes the user's accessible
 	// board ACL set; TopBoardsForTeam / TopBoardsForUser run the
