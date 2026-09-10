@@ -24,8 +24,12 @@ interface Props {
     onChange: (range: TimeRange) => void;
 }
 
+// 'Today' was replaced by 'Yesterday': a closed, complete-day window. The
+// label says Yesterday rather than "last 24 hours" because that is literally
+// what it covers — today's activity is not in the snapshot at all.
+// See webapp/src/types.ts.
 const options: SelectOption[] = [
-    {value: 'today', label: 'Today'},
+    {value: '1_day', label: 'Yesterday'},
     {value: '7_day', label: 'Last 7 days'},
     {value: '28_day', label: 'Last 28 days'},
 ];
@@ -64,7 +68,7 @@ const DropdownIndicator: React.FC<Record<string, unknown>> = (props) => (
 const ReactSelect = ReactSelectImport as unknown as React.ComponentType<Record<string, unknown>>;
 
 const TimeRangeSelectComponent: React.FC<Props> = ({value, onChange}) => {
-    const current = options.find((o) => o.value === value) ?? options[1];
+    const current = options.find((o) => o.value === value) ?? options[0];
 
     const handleChange = (selected: SelectOption | null) => {
         if (selected) {

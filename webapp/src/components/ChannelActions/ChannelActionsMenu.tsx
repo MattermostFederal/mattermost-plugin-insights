@@ -20,6 +20,7 @@
 import React, {memo, useCallback, useEffect, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
 
+import {requestHeaders} from '../../client/csrf';
 import type {TopInactiveChannel} from '../../types';
 import {trackInsightsEvent} from '../../utils/telemetry';
 import {LeaveChannelConfirmModal} from '../Modal/LeaveChannelConfirmModal';
@@ -36,9 +37,7 @@ async function postLeaveChannel(channelID: string, userID: string): Promise<void
     const resp = await fetch(`/api/v4/channels/${encodeURIComponent(channelID)}/members/${encodeURIComponent(userID)}`, {
         method: 'DELETE',
         credentials: 'include',
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-        },
+        headers: requestHeaders('DELETE'),
     });
     if (!resp.ok) {
         throw new Error(`leave channel failed: ${resp.status}`);

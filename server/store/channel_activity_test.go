@@ -1,0 +1,304 @@
+package store
+
+import (
+	"context"
+	"database/sql"
+	"testing"
+	"time"
+
+	"github.com/MattermostFederal/mattermost-plugin-insights/server/insights"
+
+	"github.com/MattermostFederal/mattermost-plugin-insights/server/store/storetest"
+)
+
+// Fixture shape — one team, six channels covering every case the governance
+// table has to get right:
+//
+//	activeCh   public,  purpose set,   3 posts by 2 distinct users, 2 members
+//	privateCh  private, purpose set,   1 post  by 1 user,           1 member
+//	abandonCh  public,  purpose set,   0 posts,                     3 members
+//	unlabelled public,  no purpose,    1 post,                      1 member
+//	staleCh    public,  purpose set,   1 post BEFORE the window,    1 member
+//	botCh      public,  purpose set,   1 post from a bot,           1 member
+//
+// Plus a deleted channel and a channel on another team, both of which must
+// not appear at all.
+
+const (
+	activeChID     = "cact0aaaaaaaaaaaaaaaaaaaaa"
+	privateChID    = "cact1aaaaaaaaaaaaaaaaaaaaa"
+	abandonChID    = "cact2aaaaaaaaaaaaaaaaaaaaa"
+	unlabelledChID = "cact3aaaaaaaaaaaaaaaaaaaaa"
+	staleChID      = "cact4aaaaaaaaaaaaaaaaaaaaa"
+	botChID        = "cact5aaaaaaaaaaaaaaaaaaaaa"
+	deletedChID    = "cact6aaaaaaaaaaaaaaaaaaaaa"
+	otherTeamChID  = "cact7aaaaaaaaaaaaaaaaaaaaa"
+
+	otherTeamID = "team9aaaaaaaaaaaaaaaaaaaaa"
+)
+
+func seedActivityChannel(t *testing.T, db *sql.DB, id, chanType, teamID, name, purpose string, createAt, lastPostAt, deleteAt int64) {
+	t.Helper()
+	mustExec(t, db,
+		`INSERT INTO channels (id, type, teamid, displayname, name, purpose, header, createat, lastpostat, deleteat)
+		 VALUES ($1, $2, $3, $4, $4, $5, '', $6, $7, $8)`,
+		id, chanType, teamID, name, purpose, createAt, lastPostAt, deleteAt)
+	if chanType == "O" {
+		mustExec(t, db,
+			`INSERT INTO publicchannels (id, teamid, displayname, name, deleteat) VALUES ($1, $2, $3, $3, $4)`,
+			id, teamID, name, deleteAt)
+	}
+}
+
+func seedMembers(t *testing.T, db *sql.DB, channelID string, userIDs ...string) {
+	t.Helper()
+	for _, u := range userIDs {
+		mustExec(t, db, `INSERT INTO channelmembers (channelid, userid) VALUES ($1, $2)`, channelID, u)
+	}
+}
+
+// seedChannelActivityFixture returns the window cutoff the tests should pass
+// as `since`.
+func seedChannelActivityFixture(t *testing.T, db *sql.DB) int64 {
+	t.Helper()
+	now := nowMillis()
+	since := now - 1000
+	beforeWindow := since - 10_000
+	postIDs := postIDGen('a')
+
+	seedActivityChannel(t, db, activeChID, "O", testTeamID, "active", "team standup", 100, now, 0)
+	seedMembers(t, db, activeChID, testUser1ID, testUser2ID)
+	seedPostBy(t, db, postIDs(), testUser1ID, activeChID, now)
+	seedPostBy(t, db, postIDs(), testUser1ID, activeChID, now)
+	seedPostBy(t, db, postIDs(), testUser2ID, activeChID, now)
+
+	seedActivityChannel(t, db, privateChID, "P", testTeamID, "private", "leads only", 200, now, 0)
+	seedMembers(t, db, privateChID, testUser1ID)
+	seedPostBy(t, db, postIDs(), testUser1ID, privateChID, now)
+
+	seedActivityChannel(t, db, abandonChID, "O", testTeamID, "abandoned", "old project", 300, 0, 0)
+	seedMembers(t, db, abandonChID, testUser1ID, testUser2ID, testUser3ID)
+
+	seedActivityChannel(t, db, unlabelledChID, "O", testTeamID, "unlabelled", "", 400, now, 0)
+	seedMembers(t, db, unlabelledChID, testUser1ID)
+	seedPostBy(t, db, postIDs(), testUser1ID, unlabelledChID, now)
+
+	seedActivityChannel(t, db, staleChID, "O", testTeamID, "stale", "dormant", 500, beforeWindow, 0)
+	seedMembers(t, db, staleChID, testUser1ID)
+	seedPostBy(t, db, postIDs(), testUser1ID, staleChID, beforeWindow)
+
+	seedActivityChannel(t, db, botChID, "O", testTeamID, "botfeed", "alerts", 600, now, 0)
+	seedMembers(t, db, botChID, testUser1ID)
+	botPost := postIDs()
+	mustExec(t, db,
+		`INSERT INTO posts (id, userid, channelid, createat, deleteat, type, props)
+		 VALUES ($1, $2, $3, $4, 0, '', '{"from_bot":"true"}'::jsonb)`,
+		botPost, testUser1ID, botChID, now)
+
+	seedActivityChannel(t, db, deletedChID, "O", testTeamID, "deleted", "gone", 700, now, now)
+	seedActivityChannel(t, db, otherTeamChID, "O", otherTeamID, "elsewhere", "other", 800, now, 0)
+
+	return since
+}
+
+// activityRow flattens the fields the assertions below care about.
+type activityRow struct {
+	Purpose                            string
+	MessageCount, Posters, MemberCount int64
+	LastPostAt, LastPostInWindow       int64
+	Type                               string
+}
+
+// windowFrom turns a fixture's `since` millis into the closed window the
+// store now takes. End is far in the future so the fixtures' "now" posts stay
+// inside the window; the closedness itself is covered in the insights package.
+func windowFrom(since int64) insights.Window {
+	return insights.Window{
+		Start: time.UnixMilli(since).UTC(),
+		End:   time.UnixMilli(since).UTC().AddDate(0, 0, 30),
+	}
+}
+
+func activityByID(t *testing.T, db *sql.DB, since int64) map[string]*activityRow {
+	t.Helper()
+	s := NewFromDB(db)
+	rows, err := s.ChannelActivityForTeam(context.Background(), testTeamID, windowFrom(since))
+	if err != nil {
+		t.Fatalf("ChannelActivityForTeam: %v", err)
+	}
+	out := make(map[string]*activityRow, len(rows))
+	for _, r := range rows {
+		out[r.ID] = &activityRow{
+			Purpose:          r.Purpose,
+			MessageCount:     r.MessageCount,
+			Posters:          r.ActivePosters,
+			MemberCount:      r.MemberCount,
+			LastPostAt:       r.LastPostAt,
+			LastPostInWindow: r.LastPostInWindow,
+			Type:             string(r.Type),
+		}
+	}
+	return out
+}
+
+func TestStore_ChannelActivityForTeam_countsAndMetadata(t *testing.T) {
+	db := storetest.NewDB(t)
+	since := seedChannelActivityFixture(t, db)
+	got := activityByID(t, db, since)
+
+	cases := []struct {
+		name                               string
+		id                                 string
+		wantPurpose                        string
+		wantMessages, wantPosters, wantMem int64
+	}{
+		{"active channel counts distinct posters", activeChID, "team standup", 3, 2, 2},
+		{"private channel is included unfiltered", privateChID, "leads only", 1, 1, 1},
+		{"abandoned channel appears with zero posts", abandonChID, "old project", 0, 0, 3},
+		{"unlabelled channel has empty purpose", unlabelledChID, "", 1, 1, 1},
+		{"posts before the window do not count", staleChID, "dormant", 0, 0, 1},
+		{"bot posts are excluded", botChID, "alerts", 0, 0, 1},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			row, ok := got[tc.id]
+			if !ok {
+				t.Fatalf("channel %s missing from results", tc.id)
+			}
+			if row.Purpose != tc.wantPurpose {
+				t.Errorf("Purpose = %q; want %q", row.Purpose, tc.wantPurpose)
+			}
+			if row.MessageCount != tc.wantMessages {
+				t.Errorf("MessageCount = %d; want %d", row.MessageCount, tc.wantMessages)
+			}
+			if row.Posters != tc.wantPosters {
+				t.Errorf("ActivePosters = %d; want %d", row.Posters, tc.wantPosters)
+			}
+			if row.MemberCount != tc.wantMem {
+				t.Errorf("MemberCount = %d; want %d", row.MemberCount, tc.wantMem)
+			}
+		})
+	}
+}
+
+func TestStore_ChannelActivityForTeam_excludesDeletedAndOtherTeams(t *testing.T) {
+	db := storetest.NewDB(t)
+	since := seedChannelActivityFixture(t, db)
+	got := activityByID(t, db, since)
+
+	if _, ok := got[deletedChID]; ok {
+		t.Error("deleted channel should not appear")
+	}
+	if _, ok := got[otherTeamChID]; ok {
+		t.Error("channel from another team should not appear")
+	}
+	if len(got) != 6 {
+		t.Errorf("got %d channels; want 6", len(got))
+	}
+}
+
+// LastPostAt is read straight off Channels rather than derived from Posts, so
+// it reflects real activity even when that activity falls outside the window.
+// The governance table uses it to answer "when was this last touched at all".
+func TestStore_ChannelActivityForTeam_reportsLastPostAtOutsideWindow(t *testing.T) {
+	db := storetest.NewDB(t)
+	since := seedChannelActivityFixture(t, db)
+	got := activityByID(t, db, since)
+
+	stale, ok := got[staleChID]
+	if !ok {
+		t.Fatal("stale channel missing")
+	}
+	if stale.LastPostAt == 0 || stale.LastPostAt >= since {
+		t.Errorf("LastPostAt = %d; want a nonzero value before since=%d", stale.LastPostAt, since)
+	}
+	if abandoned := got[abandonChID]; abandoned.LastPostAt != 0 {
+		t.Errorf("never-posted channel LastPostAt = %d; want 0", abandoned.LastPostAt)
+	}
+}
+
+// LastPostAt and LastPostInWindow deliberately disagree for a channel whose
+// only activity predates the window. Top Inactive Channels reports the
+// windowed value (its deprecated query did), while the governance table wants
+// the all-time one.
+func TestStore_ChannelActivityForTeam_separatesAllTimeFromWindowedLastPost(t *testing.T) {
+	db := storetest.NewDB(t)
+	since := seedChannelActivityFixture(t, db)
+	got := activityByID(t, db, since)
+
+	stale := got[staleChID]
+	if stale.LastPostAt == 0 {
+		t.Error("stale channel LastPostAt = 0; want its real all-time timestamp")
+	}
+	if stale.LastPostInWindow != 0 {
+		t.Errorf("stale channel LastPostInWindow = %d; want 0 (no posts in window)", stale.LastPostInWindow)
+	}
+
+	active := got[activeChID]
+	if active.LastPostInWindow <= since {
+		t.Errorf("active channel LastPostInWindow = %d; want > since=%d", active.LastPostInWindow, since)
+	}
+}
+
+// Regression: LastPostAt used to be read from the denormalized
+// Channels.LastPostAt column, which advances on system messages and webhook
+// traffic. A dead channel then reported activity the moment somebody joined
+// it — exactly the case the governance table exists to catch.
+func TestStore_ChannelActivityForTeam_lastPostIgnoresSystemAndBotPosts(t *testing.T) {
+	db := storetest.NewDB(t)
+	since := seedChannelActivityFixture(t, db)
+	now := nowMillis()
+	postIDs := postIDGen('z')
+
+	// A join message and a webhook post, both newer than any real message.
+	mustExec(t, db,
+		`INSERT INTO posts (id, userid, channelid, createat, deleteat, type)
+		 VALUES ($1, $2, $3, $4, 0, 'system_join_channel')`,
+		postIDs(), testUser2ID, staleChID, now)
+	mustExec(t, db,
+		`INSERT INTO posts (id, userid, channelid, createat, deleteat, type, props)
+		 VALUES ($1, $2, $3, $4, 0, '', '{"from_webhook":"true"}'::jsonb)`,
+		postIDs(), testUser2ID, staleChID, now)
+
+	// Channels.LastPostAt is what the app would have advanced; the query must
+	// not trust it.
+	mustExec(t, db, `UPDATE channels SET lastpostat = $1 WHERE id = $2`, now, staleChID)
+
+	got := activityByID(t, db, since)
+	stale := got[staleChID]
+
+	if stale.LastPostAt >= since {
+		t.Errorf("LastPostAt = %d; want the real message's timestamp before since=%d, not a join or webhook post", stale.LastPostAt, since)
+	}
+	if stale.MessageCount != 0 {
+		t.Errorf("MessageCount = %d; want 0", stale.MessageCount)
+	}
+}
+
+// A channel that has never carried a human message reports 0 so the UI can
+// render "Never" rather than a date.
+func TestStore_ChannelActivityForTeam_lastPostIsZeroWhenNeverPosted(t *testing.T) {
+	db := storetest.NewDB(t)
+	since := seedChannelActivityFixture(t, db)
+
+	mustExec(t, db, `UPDATE channels SET lastpostat = $1 WHERE id = $2`, nowMillis(), abandonChID)
+
+	got := activityByID(t, db, since)
+	if got[abandonChID].LastPostAt != 0 {
+		t.Errorf("LastPostAt = %d for a never-posted channel; want 0", got[abandonChID].LastPostAt)
+	}
+}
+
+func TestStore_ChannelActivityForTeam_returnsChannelType(t *testing.T) {
+	db := storetest.NewDB(t)
+	since := seedChannelActivityFixture(t, db)
+	got := activityByID(t, db, since)
+
+	if got[activeChID].Type != "O" {
+		t.Errorf("public channel Type = %q; want O", got[activeChID].Type)
+	}
+	if got[privateChID].Type != "P" {
+		t.Errorf("private channel Type = %q; want P", got[privateChID].Type)
+	}
+}

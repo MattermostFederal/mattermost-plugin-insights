@@ -24,6 +24,6 @@ test('opens menu and switches to a new range', async ({mount}) => {
         />,
     );
     await component.locator('.insights-time-range__control').click();
-    await component.page().getByText('Today', {exact: true}).click();
-    expect(chosen).toBe('today');
+    await component.page().getByText('Last 28 days', {exact: true}).click();
+    expect(chosen).toBe('28_day');
 });

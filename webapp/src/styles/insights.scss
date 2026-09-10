@@ -44,6 +44,22 @@ body.insights-product-active {
     grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
 }
 
+// Governance sits above the card grid. `.insights-page` is a flex column with
+// no gap, so the separation from the cards below comes from this margin —
+// matching the 24px the controls strip uses to clear its own bottom border.
+.insights-page__governance {
+    flex-shrink: 0;
+    margin-bottom: 24px;
+}
+
+.insights-page__section-title {
+    margin: 0 0 16px;
+    color: var(--center-channel-color);
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 24px;
+}
+
 // ----- Scope title-dropdown (ported from the deprecated
 // `.insights-title` button + Menu) ---------------------------------------
 
@@ -1502,4 +1518,441 @@ body.insights-product-active {
     font-size: 16px;
     font-weight: 600;
     line-height: 24px;
+}
+
+// Channel governance table — the per-channel audit view. Uses the host's
+// theme CSS variables throughout so it follows the user's Mattermost theme
+// in both light and dark rather than hard-coding colors.
+.ChannelGovernanceList {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+
+    .governance-summary {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+    }
+
+    .governance-stat {
+        display: flex;
+        flex-direction: column;
+        padding: 12px 16px;
+        border: 1px solid rgba(var(--center-channel-color-rgb), 0.12);
+        border-radius: 4px;
+
+        &__value {
+            color: var(--center-channel-color);
+            font-size: 24px;
+            font-weight: 600;
+            line-height: 32px;
+        }
+
+        &__label {
+            color: rgba(var(--center-channel-color-rgb), 0.72);
+            font-size: 12px;
+            line-height: 16px;
+        }
+
+        &__sub {
+            color: rgba(var(--center-channel-color-rgb), 0.56);
+            font-size: 11px;
+            line-height: 16px;
+        }
+    }
+
+    .governance-table {
+        width: 100%;
+        border-collapse: collapse;
+
+        th {
+            padding: 8px 12px;
+            border-bottom: 1px solid rgba(var(--center-channel-color-rgb), 0.16);
+            color: rgba(var(--center-channel-color-rgb), 0.72);
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.6px;
+            text-align: left;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 8px 12px;
+            border-bottom: 1px solid rgba(var(--center-channel-color-rgb), 0.08);
+            color: var(--center-channel-color);
+            font-size: 12px;
+            line-height: 16px;
+        }
+    }
+
+    .governance-th--sortable {
+        padding: 0;
+
+        &.is-active .governance-sort-button {
+            color: var(--center-channel-color);
+        }
+    }
+
+    .governance-sort-button {
+        display: inline-flex;
+        width: 100%;
+        align-items: center;
+        justify-content: inherit;
+        padding: 8px 12px;
+        border: 0;
+        background: transparent;
+        color: inherit;
+        cursor: pointer;
+        font: inherit;
+        gap: 4px;
+        letter-spacing: inherit;
+        text-transform: inherit;
+
+        &:hover {
+            background: rgba(var(--center-channel-color-rgb), 0.04);
+        }
+    }
+
+    .governance-cell--num .governance-sort-button {
+        justify-content: flex-end;
+    }
+
+    .governance-row {
+        &:hover {
+            background: rgba(var(--center-channel-color-rgb), 0.04);
+        }
+    }
+
+    .governance-cell {
+        &--name {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 600;
+        }
+
+        &--num {
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        &--purpose {
+            max-width: 320px;
+            color: rgba(var(--center-channel-color-rgb), 0.72);
+        }
+    }
+
+    // "Not set" pairs a dot with the literal word: the dot alone would carry
+    // meaning by color, which fails at low contrast and for CVD readers.
+    .governance-notset {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: rgba(var(--center-channel-color-rgb), 0.56);
+        font-style: italic;
+
+        &__dot {
+            width: 6px;
+            height: 6px;
+            flex: none;
+            border-radius: 50%;
+            background: var(--away-indicator);
+        }
+    }
+
+    .governance-muted {
+        color: rgba(var(--center-channel-color-rgb), 0.56);
+    }
+
+    .governance-empty,
+    .governance-loading,
+    .governance-error {
+        padding: 24px;
+        color: rgba(var(--center-channel-color-rgb), 0.72);
+        text-align: center;
+    }
+
+    .governance-error {
+        color: var(--error-text);
+    }
+}
+
+// New team members is a secondary card sitting under the governance table.
+// The deprecated layout used 50px avatars and a three-line info block per
+// person, which made six joiners taller than eleven channels. Compact rows
+// keep the page's emphasis on the table.
+.new-members-compact {
+    .new-members-item {
+        display: flex;
+        align-items: center;
+        padding: 4px 0;
+        gap: 8px;
+    }
+
+    .dm-info {
+        display: flex;
+        min-width: 0;
+        flex: 1;
+        align-items: baseline;
+        gap: 8px;
+    }
+
+    .dm-name {
+        overflow: hidden;
+        font-size: 13px;
+        font-weight: 600;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .dm-role {
+        overflow: hidden;
+        color: rgba(var(--center-channel-color-rgb), 0.56);
+        font-size: 11px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    // "Say hello" is a per-row action that cost a whole line each. Keep it
+    // available but out of the default flow.
+    .channel-message-count {
+        margin-left: auto;
+        opacity: 0;
+        transition: opacity 0.1s ease-in-out;
+    }
+
+    .new-members-item:hover .channel-message-count,
+    .new-members-item:focus-visible .channel-message-count {
+        opacity: 1;
+    }
+}
+
+// Governance toolbar: search + quick filters. Sits between the summary tiles
+// and the table because both narrow the same set.
+.ChannelGovernanceList {
+    .governance-freshness {
+        margin: -8px 0 0;
+        color: rgba(var(--center-channel-color-rgb), 0.56);
+        font-size: 11px;
+    }
+
+    .governance-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .governance-search {
+        min-width: 240px;
+        padding: 6px 10px;
+        border: 1px solid rgba(var(--center-channel-color-rgb), 0.16);
+        border-radius: 4px;
+        background: var(--center-channel-bg);
+        color: var(--center-channel-color);
+        font-size: 13px;
+
+        &:focus {
+            border-color: var(--button-bg);
+            outline: none;
+        }
+    }
+
+    .governance-filters {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .governance-chip {
+        padding: 5px 11px;
+        border: 1px solid rgba(var(--center-channel-color-rgb), 0.16);
+        border-radius: 13px;
+        background: transparent;
+        color: rgba(var(--center-channel-color-rgb), 0.75);
+        cursor: pointer;
+        font-size: 12px;
+
+        &:hover {
+            background: rgba(var(--center-channel-color-rgb), 0.04);
+        }
+
+        &.is-active {
+            border-color: var(--button-bg);
+            background: var(--button-bg);
+            color: var(--button-color);
+        }
+    }
+
+    .governance-matchcount {
+        margin-left: auto;
+        color: rgba(var(--center-channel-color-rgb), 0.56);
+        font-size: 12px;
+    }
+
+    // Denser rows: this is a scanning surface over hundreds of channels, not
+    // a card with five entries.
+    .governance-table td {
+        padding: 5px 12px;
+    }
+
+    // Paging through the audit set. The previous page stays on screen while
+    // the next one loads, dimmed rather than blanked, so the pager keeps its
+    // place under the cursor.
+    &.is-loading .governance-table {
+        opacity: 0.5;
+    }
+
+    .governance-pager {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 4px;
+        padding-top: 4px;
+        color: rgba(var(--center-channel-color-rgb), 0.72);
+        font-size: 12px;
+    }
+
+    .governance-pager__range {
+        margin-right: 4px;
+    }
+}
+
+// Four-up summary row: three channel stats plus the New Team Members tile.
+.ChannelGovernanceList {
+    .governance-summary--four {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    // The members tile is clickable (it opens the full list), so it is a
+    // button — reset the browser chrome and keep it visually a tile.
+    .governance-stat--button {
+        align-items: flex-start;
+        border: 1px solid rgba(var(--center-channel-color-rgb), 0.12);
+        background: transparent;
+        cursor: pointer;
+        font: inherit;
+        text-align: left;
+
+        &:hover {
+            background: rgba(var(--center-channel-color-rgb), 0.04);
+        }
+    }
+
+    .governance-channel-button {
+        display: inline-flex;
+        align-items: center;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        color: inherit;
+        cursor: pointer;
+        font: inherit;
+        gap: 6px;
+        text-align: left;
+    }
+
+    // Face pile: the count alone would drop the useful part, which is who
+    // joined. Overlapping avatars carry that without costing a row each.
+    .governance-facepile {
+        display: flex;
+        align-items: center;
+        margin-top: 6px;
+
+        &__face {
+            margin-right: -6px;
+            border: 2px solid var(--center-channel-bg);
+            border-radius: 50%;
+        }
+
+        &__more {
+            margin-left: 12px;
+            color: rgba(var(--center-channel-color-rgb), 0.56);
+            font-size: 11px;
+        }
+    }
+}
+
+// New Team Members modal. Restyled to match the governance table rather than
+// the deprecated DataGrid look: uppercase letter-spaced headers, hairline row
+// rules, no heavy zebra fill. The two surfaces sit one click apart, so they
+// should read as the same product.
+//
+// The card that used to show avatars and the "Say hello" wave is gone, so
+// this modal carries them — it is the only place left to put a face to a
+// name.
+.InsightsTable.NewMembersTable {
+    .DataGrid_header {
+        padding: 8px 0;
+        border-bottom: 1px solid rgba(var(--center-channel-color-rgb), 0.16);
+        background-color: transparent;
+        color: rgba(var(--center-channel-color-rgb), 0.72);
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.6px;
+        text-transform: uppercase;
+    }
+
+    .DataGrid_row {
+        min-height: 0;
+        padding: 6px 0;
+        border-bottom: 1px solid rgba(var(--center-channel-color-rgb), 0.08);
+        background: transparent;
+
+        &:hover {
+            background: rgba(var(--center-channel-color-rgb), 0.04);
+        }
+    }
+
+    .cell-text {
+        font-size: 13px;
+    }
+
+    .new-members-cell {
+        display: flex;
+        min-width: 0;
+        align-items: center;
+        gap: 10px;
+
+        &__names {
+            display: flex;
+            min-width: 0;
+            flex-direction: column;
+        }
+
+        &__username {
+            overflow: hidden;
+            color: rgba(var(--center-channel-color-rgb), 0.56);
+            font-size: 11px;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        // Lives inside the name cell rather than its own column: a fourth
+        // column pushed the grid past the modal width, and the DataGrid's
+        // truncation marker then showed through as a stray ellipsis.
+        &__hello {
+            display: inline-flex;
+            align-items: center;
+            margin-left: 10px;
+            color: var(--link-color);
+            font-size: 12px;
+            gap: 5px;
+            opacity: 0;
+            transition: opacity 0.1s ease-in-out;
+            white-space: nowrap;
+        }
+    }
+
+    .DataGrid_row:hover .new-members-cell__hello,
+    .DataGrid_row:focus-within .new-members-cell__hello {
+        opacity: 1;
+    }
+
+    .DataGrid_footer {
+        border-top: 1px solid rgba(var(--center-channel-color-rgb), 0.08);
+        color: rgba(var(--center-channel-color-rgb), 0.72);
+        font-size: 12px;
+    }
 }

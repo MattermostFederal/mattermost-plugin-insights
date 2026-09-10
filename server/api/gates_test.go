@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -17,27 +18,193 @@ import (
 // silently skip a check. Adapted from the deprecated
 // server/channels/api4/insights_test.go's auth sub-tests.
 
-// allRoutes returns the (path, scope) pairs the router serves for the
-// gates-matrix tests. scope is "team" if the route is team-scoped (and
-// therefore subject to the license + view_team gates), "user" otherwise.
-func allRoutes() []struct {
+// skipIfPersonalInsightsDisabled marks a My-scope handler test as skipped
+// while EnablePersonalInsights is off. The handlers themselves remain in the
+// tree, so these tests stay valid and run again the moment the flag flips.
+func skipIfPersonalInsightsDisabled(t *testing.T) {
+	t.Helper()
+	if !EnablePersonalInsights {
+		t.Skip("personal insights disabled; see EnablePersonalInsights")
+	}
+}
+
+// skipIfBoardsAndPlaybooksDisabled marks a test that asserts Top Boards /
+// Top Playbooks actually query the store. While EnableBoardsAndPlaybooks is
+// off the handlers short-circuit to an empty NotAvailable list, so these
+// assertions only apply once the flag flips back on.
+func skipIfBoardsAndPlaybooksDisabled(t *testing.T) {
+	t.Helper()
+	if !EnableBoardsAndPlaybooks {
+		t.Skip("boards/playbooks disabled; see EnableBoardsAndPlaybooks")
+	}
+}
+
+// TestBoardsAndPlaybooksStubbed pins the stub contract: the routes still
+// pass their auth gates and return 200, but they query nothing and flag the
+// payload NotAvailable so the webapp can tell "off" from "empty".
+func TestBoardsAndPlaybooksStubbed(t *testing.T) {
+	if EnableBoardsAndPlaybooks {
+		t.Skip("boards/playbooks are enabled")
+	}
+	auth := &apitest.AuthStub{
+		Users:     map[string]*model.User{testUserID: {Id: testUserID}},
+		License:   professionalLicense(),
+		TeamPerms: map[string]map[string]bool{testUserID: {testTeamID: true}},
+	}
+	for _, path := range []string{
+		"/api/v1/teams/" + testTeamID + "/top/boards?time_range=7_day",
+		"/api/v1/teams/" + testTeamID + "/top/playbooks?time_range=7_day",
+	} {
+		t.Run(path, func(t *testing.T) {
+			store := fullyStubbedStore()
+			api := New(auth, &apitest.DirectoryStub{}, store)
+
+			w := httptest.NewRecorder()
+			api.ServeHTTP(w, newAuthedRequest(http.MethodGet, path, testUserID))
+
+			if w.Code != http.StatusOK {
+				t.Fatalf("status = %d; want 200, body=%s", w.Code, w.Body.String())
+			}
+			var body struct {
+				Items        []json.RawMessage `json:"items"`
+				NotAvailable bool              `json:"not_available"`
+			}
+			if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+				t.Fatalf("decode: %v", err)
+			}
+			if !body.NotAvailable {
+				t.Error("not_available = false; want true")
+			}
+			if len(body.Items) != 0 {
+				t.Errorf("items = %d; want 0", len(body.Items))
+			}
+			if n := len(store.BoardIDsForUserInTeamCalls) + len(store.TopPlaybooksForTeamCalls); n != 0 {
+				t.Errorf("store was queried %d times; want 0", n)
+			}
+		})
+	}
+}
+
+// skipIfReactionsAndThreadsDisabled marks a test that asserts Top Reactions /
+// Top Threads actually query the store. While EnableReactionsAndThreads is off
+// the handlers short-circuit to an empty NotAvailable list.
+func skipIfReactionsAndThreadsDisabled(t *testing.T) {
+	t.Helper()
+	if !EnableReactionsAndThreads {
+		t.Skip("reactions/threads disabled; see EnableReactionsAndThreads")
+	}
+}
+
+// TestReactionsAndThreadsStubbed pins the 1.0 contract: both routes keep
+// their auth gates and return 200, but query nothing. Switching them off is
+// what makes "no live aggregations on page load" true — neither could be put
+// on the shared snapshot cheaply, because both scope private channels per
+// requester (INSIGHTS_REFERENCE.md §2.1, §2.3).
+func TestReactionsAndThreadsStubbed(t *testing.T) {
+	if EnableReactionsAndThreads {
+		t.Skip("reactions/threads are enabled")
+	}
+	auth := &apitest.AuthStub{
+		Users:     map[string]*model.User{testUserID: {Id: testUserID}},
+		License:   professionalLicense(),
+		TeamPerms: map[string]map[string]bool{testUserID: {testTeamID: true}},
+	}
+	for _, path := range []string{
+		"/api/v1/teams/" + testTeamID + "/top/reactions?time_range=7_day",
+		"/api/v1/teams/" + testTeamID + "/top/threads?time_range=7_day",
+	} {
+		t.Run(path, func(t *testing.T) {
+			store := fullyStubbedStore()
+			api := New(auth, &apitest.DirectoryStub{}, store)
+
+			w := httptest.NewRecorder()
+			api.ServeHTTP(w, newAuthedRequest(http.MethodGet, path, testUserID))
+
+			if w.Code != http.StatusOK {
+				t.Fatalf("status = %d; want 200, body=%s", w.Code, w.Body.String())
+			}
+			var body struct {
+				Items        []json.RawMessage `json:"items"`
+				NotAvailable bool              `json:"not_available"`
+			}
+			if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+				t.Fatalf("decode: %v", err)
+			}
+			if !body.NotAvailable {
+				t.Error("not_available = false; want true")
+			}
+			if len(body.Items) != 0 {
+				t.Errorf("items = %d; want 0", len(body.Items))
+			}
+			if n := len(store.TopReactionsForTeamCalls) + len(store.TopThreadsForTeamCalls); n != 0 {
+				t.Errorf("store was queried %d times; want 0", n)
+			}
+		})
+	}
+}
+
+// gateRoute is one row of the gates matrix. scope is "team" if the route is
+// team-scoped (and therefore subject to the license + view_team gates),
+// "user" otherwise.
+type gateRoute struct {
 	path, scope string
-} {
-	return []struct{ path, scope string }{
-		{"/api/v1/teams/" + testTeamID + "/top/reactions?time_range=today", "team"},
-		{"/api/v1/teams/" + testTeamID + "/top/channels?time_range=today", "team"},
-		{"/api/v1/teams/" + testTeamID + "/top/threads?time_range=today", "team"},
-		{"/api/v1/teams/" + testTeamID + "/top/inactive_channels?time_range=today", "team"},
-		{"/api/v1/teams/" + testTeamID + "/top/team_members?time_range=today", "team"},
-		{"/api/v1/teams/" + testTeamID + "/top/boards?time_range=today", "team"},
-		{"/api/v1/teams/" + testTeamID + "/top/playbooks?time_range=today", "team"},
-		{"/api/v1/users/me/top/reactions?time_range=today", "user"},
-		{"/api/v1/users/me/top/channels?time_range=today", "user"},
-		{"/api/v1/users/me/top/threads?time_range=today", "user"},
-		{"/api/v1/users/me/top/dms?time_range=today", "user"},
-		{"/api/v1/users/me/top/inactive_channels?time_range=today", "user"},
-		{"/api/v1/users/me/top/boards?time_range=today&team_id=" + testTeamID, "user"},
-		{"/api/v1/users/me/top/playbooks?time_range=today&team_id=" + testTeamID, "user"},
+}
+
+// personalRoutes are the user-scoped ("My") insight routes. They are only
+// served when EnablePersonalInsights is on; TestGates_personalInsightsDisabled
+// asserts they are unreachable otherwise.
+func personalRoutes() []gateRoute {
+	return []gateRoute{
+		{"/api/v1/users/me/top/reactions?time_range=7_day", "user"},
+		{"/api/v1/users/me/top/channels?time_range=7_day", "user"},
+		{"/api/v1/users/me/top/threads?time_range=7_day", "user"},
+		{"/api/v1/users/me/top/dms?time_range=7_day", "user"},
+		{"/api/v1/users/me/top/inactive_channels?time_range=7_day", "user"},
+		{"/api/v1/users/me/top/boards?time_range=7_day&team_id=" + testTeamID, "user"},
+		{"/api/v1/users/me/top/playbooks?time_range=7_day&team_id=" + testTeamID, "user"},
+	}
+}
+
+// allRoutes returns every route the router currently serves, for the
+// gates-matrix tests.
+func allRoutes() []gateRoute {
+	routes := []gateRoute{
+		{"/api/v1/teams/" + testTeamID + "/top/reactions?time_range=7_day", "team"},
+		{"/api/v1/teams/" + testTeamID + "/top/channels?time_range=7_day", "team"},
+		{"/api/v1/teams/" + testTeamID + "/top/threads?time_range=7_day", "team"},
+		{"/api/v1/teams/" + testTeamID + "/top/inactive_channels?time_range=7_day", "team"},
+		{"/api/v1/teams/" + testTeamID + "/top/team_members?time_range=7_day", "team"},
+		{"/api/v1/teams/" + testTeamID + "/top/boards?time_range=7_day", "team"},
+		{"/api/v1/teams/" + testTeamID + "/top/playbooks?time_range=7_day", "team"},
+		{"/api/v1/teams/" + testTeamID + "/channel_activity?time_range=7_day", "team"},
+	}
+	if EnablePersonalInsights {
+		routes = append(routes, personalRoutes()...)
+	}
+	return routes
+}
+
+// TestGates_personalInsightsDisabled pins the Phase 1a behavior: with
+// EnablePersonalInsights off, an authenticated non-guest user cannot reach
+// any My-scope route, so none of their per-request aggregations can run.
+func TestGates_personalInsightsDisabled(t *testing.T) {
+	if EnablePersonalInsights {
+		t.Skip("personal insights are enabled")
+	}
+	auth := &apitest.AuthStub{
+		Users:     map[string]*model.User{testUserID: {Id: testUserID}},
+		License:   professionalLicense(),
+		TeamPerms: map[string]map[string]bool{testUserID: {testTeamID: true}},
+	}
+	api := New(auth, &apitest.DirectoryStub{}, fullyStubbedStore())
+	for _, route := range personalRoutes() {
+		t.Run(route.path, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			api.ServeHTTP(w, newAuthedRequest(http.MethodGet, route.path, testUserID))
+			if w.Code != http.StatusNotFound {
+				t.Errorf("status = %d; want 404 (personal insights disabled)", w.Code)
+			}
+		})
 	}
 }
 
@@ -161,7 +328,7 @@ func TestGates_acceptsAllSupportedLicenseTiers(t *testing.T) {
 			}
 			api := New(auth, &apitest.DirectoryStub{}, fullyStubbedStore())
 			w := httptest.NewRecorder()
-			api.ServeHTTP(w, newAuthedRequest(http.MethodGet, "/api/v1/teams/"+testTeamID+"/top/reactions?time_range=today", testUserID))
+			api.ServeHTTP(w, newAuthedRequest(http.MethodGet, "/api/v1/teams/"+testTeamID+"/top/reactions?time_range=7_day", testUserID))
 			if w.Code != http.StatusOK {
 				t.Errorf("%s license: status = %d; want 200; body=%s", tier.name, w.Code, w.Body.String())
 			}

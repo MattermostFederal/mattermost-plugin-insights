@@ -10,6 +10,8 @@
 // Failures are swallowed: a missing telemetry event must not break a
 // user-visible action like opening a channel or thread.
 
+import {requestHeaders} from '../client/csrf';
+
 const url = '/plugins/insights/api/v1/telemetry';
 
 export function trackInsightsEvent(event: string, properties?: Record<string, unknown>): void {
@@ -19,10 +21,7 @@ export function trackInsightsEvent(event: string, properties?: Record<string, un
         void fetch(url, {
             method: 'POST',
             credentials: 'include',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-            },
+            headers: requestHeaders('POST', {'Content-Type': 'application/json'}),
             body: JSON.stringify({event, properties}),
         }).catch(() => undefined);
     } catch {

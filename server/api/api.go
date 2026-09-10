@@ -9,6 +9,7 @@ import (
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/pluginapi"
 
+	"github.com/MattermostFederal/mattermost-plugin-insights/server/cache"
 	"github.com/MattermostFederal/mattermost-plugin-insights/server/insights"
 )
 
@@ -20,14 +21,26 @@ type Storer interface {
 	TopReactionsForTeamSince(ctx context.Context, teamID, userID string, since int64, page, perPage int) (*insights.TopReactionList, error)
 	TopThreadsForUserSince(ctx context.Context, userID, teamID string, since int64, page, perPage int) (*insights.TopThreadList, error)
 	TopThreadsForTeamSince(ctx context.Context, teamID, userID string, since int64, page, perPage int) (*insights.TopThreadList, error)
-	NewTeamMembersSince(ctx context.Context, teamID string, since int64, page, perPage int, showFullName bool) (*insights.NewTeamMembersList, error)
-	TopChannelsForUserSince(ctx context.Context, userID, teamID string, since int64, page, perPage int) (*insights.TopChannelList, error)
+	NewTeamMembersSince(ctx context.Context, teamID string, w insights.Window, page, perPage int, showFullName bool) (*insights.NewTeamMembersList, error)
+	TopChannelsForUserSince(ctx context.Context, userID, teamID string, start, end int64, page, perPage int) (*insights.TopChannelList, error)
 	TopChannelsForTeamSince(ctx context.Context, teamID, userID string, since int64, page, perPage int) (*insights.TopChannelList, error)
+
+	// ChannelActivityForTeam is the cached team-wide aggregate behind Top
+	// Channels, Top Inactive Channels, and the governance table. It takes no
+	// userID and no pagination so one result can be shared across the team;
+	// PrivateChannelIDsForUser supplies the per-request visibility filter.
+	ChannelActivityForTeam(ctx context.Context, teamID string, w insights.Window) ([]*insights.ChannelActivity, error)
+	PrivateChannelIDsForUser(ctx context.Context, userID, teamID string) ([]string, error)
+
+	// AttachInactiveChannelParticipants fills in Participants for the rows
+	// on the current page. Deliberately not cached: it is bounded by
+	// per_page and keyed to the page's channel ids, so it stays small.
+	AttachInactiveChannelParticipants(ctx context.Context, channels []*insights.TopInactiveChannel) error
 	TopInactiveChannelsForUserSince(ctx context.Context, userID, teamID string, since int64, page, perPage int) (*insights.TopInactiveChannelList, error)
 	TopInactiveChannelsForTeamSince(ctx context.Context, teamID, userID string, since int64, page, perPage int) (*insights.TopInactiveChannelList, error)
 	TopDMsForUserSince(ctx context.Context, userID string, since int64, page, perPage int) (*insights.TopDMList, error)
 	OutgoingDMCounts(ctx context.Context, userID string, channelIDs []string, since int64) (map[string]int64, error)
-	PostCountsByDuration(ctx context.Context, channelIDs []string, sinceUnixMillis int64, userID, grouping, location string) ([]*insights.DurationPostCount, error)
+	PostCountsByDuration(ctx context.Context, channelIDs []string, startUnixMillis, endUnixMillis int64, userID, grouping, location string) ([]*insights.DurationPostCount, error)
 
 	// Top Boards: BoardIDsForUserInTeam computes the user's accessible
 	// board ACL set; TopBoardsForTeam / TopBoardsForUser run the
@@ -83,7 +96,53 @@ type API struct {
 	store     Storer
 	telemetry Telemetry
 	router    *mux.Router
+
+	// cache holds the daily team snapshots. Entries are keyed by team, time
+	// range, and the window's date — never by user — so the expensive
+	// aggregation runs once a day rather than once per page load, and rolls
+	// over at midnight UTC rather than 24h after it happened to be built.
+	cache *cache.Cache
 }
+
+// EnablePersonalInsights controls whether the user-scoped ("My") insight
+// routes are served. Personal insights are disabled while the plugin moves
+// team insights onto a once-daily server-wide snapshot: the My-scope queries
+// run per-request and carry the performance problems catalogued in
+// INSIGHTS_REFERENCE.md §3, and there is no per-user equivalent of the
+// snapshot.
+//
+// Consequence: team routes require a Professional+ license, so with this
+// off the plugin serves nothing on unlicensed, Starter, or non-enterprise
+// builds. That is accepted for now and expected to change.
+const EnablePersonalInsights = false
+
+// EnableBoardsAndPlaybooks controls whether the Top Boards and Top Playbooks
+// insights run their queries. Both are stubbed off: they read tables owned by
+// other plugins (focalboard_*, IR_*), which 500 outright when that plugin is
+// absent, and neither is worth carrying onto the daily snapshot.
+//
+// The routes stay registered and keep their auth gates so the gates matrix
+// stays uniform; the handlers return an empty list marked NotAvailable
+// instead of querying.
+const EnableBoardsAndPlaybooks = false
+
+// EnableReactionsAndThreads controls whether Top Reactions and Top Threads
+// run their queries. Both are off for 1.0.
+//
+// The requirement is that team insights are "cached server wide once a day"
+// with no live aggregations on page load. Neither of these can meet it
+// cheaply: both scope private channels per requester (INSIGHTS_REFERENCE.md
+// §2.1, §2.3), so a shared snapshot needs channel-grain entries and a
+// read-time sum — for reactions that means a (channel, emoji) entry, the
+// largest payload of any insight. Top Threads additionally carries the §3.1
+// N+1 hydration, which needs either stale post content or a new batched
+// lookup.
+//
+// Switching them off satisfies the requirement immediately rather than after
+// the two most expensive pieces of work left, and neither card appears in any
+// stated requirement. Re-enable by flipping this once there is time to put
+// them on the snapshot properly.
+const EnableReactionsAndThreads = false
 
 // New builds the API and wires every route.
 func New(auth AuthProvider, directory Directory, st Storer) *API {
@@ -97,7 +156,13 @@ func NewWithTelemetry(auth AuthProvider, _ /*reserved*/ any, directory Directory
 	if tel == nil {
 		tel = noopTelemetry{}
 	}
-	a := &API{auth: auth, directory: directory, store: st, telemetry: tel}
+	a := &API{
+		auth:      auth,
+		directory: directory,
+		store:     st,
+		telemetry: tel,
+		cache:     cache.New(cache.Options{}),
+	}
 
 	r := mux.NewRouter()
 	v1 := r.PathPrefix("/api/v1").Subrouter()
@@ -113,14 +178,24 @@ func NewWithTelemetry(auth AuthProvider, _ /*reserved*/ any, directory Directory
 	v1.HandleFunc("/teams/{team_id}/top/boards", a.requireUser(a.handleTopBoardsForTeam)).Methods(http.MethodGet)
 	v1.HandleFunc("/teams/{team_id}/top/playbooks", a.requireUser(a.handleTopPlaybooksForTeam)).Methods(http.MethodGet)
 
+	// Channel governance — every channel in the team with its activity and
+	// metadata, rather than a top-N. Same gates as the routes above.
+	v1.HandleFunc("/teams/{team_id}/channel_activity", a.requireUser(a.handleChannelGovernance)).Methods(http.MethodGet)
+
 	// User-scoped insights (no license requirement).
-	v1.HandleFunc("/users/me/top/reactions", a.requireUser(a.handleTopReactionsForUser)).Methods(http.MethodGet)
-	v1.HandleFunc("/users/me/top/channels", a.requireUser(a.handleTopChannelsForUser)).Methods(http.MethodGet)
-	v1.HandleFunc("/users/me/top/threads", a.requireUser(a.handleTopThreadsForUser)).Methods(http.MethodGet)
-	v1.HandleFunc("/users/me/top/dms", a.requireUser(a.handleTopDMsForUser)).Methods(http.MethodGet)
-	v1.HandleFunc("/users/me/top/inactive_channels", a.requireUser(a.handleTopInactiveChannelsForUser)).Methods(http.MethodGet)
-	v1.HandleFunc("/users/me/top/boards", a.requireUser(a.handleTopBoardsForUser)).Methods(http.MethodGet)
-	v1.HandleFunc("/users/me/top/playbooks", a.requireUser(a.handleTopPlaybooksForUser)).Methods(http.MethodGet)
+	//
+	// Disabled — see EnablePersonalInsights. The handlers and their store
+	// queries are intentionally left in the tree so re-enabling is a
+	// one-line change while the product decision is still open.
+	if EnablePersonalInsights {
+		v1.HandleFunc("/users/me/top/reactions", a.requireUser(a.handleTopReactionsForUser)).Methods(http.MethodGet)
+		v1.HandleFunc("/users/me/top/channels", a.requireUser(a.handleTopChannelsForUser)).Methods(http.MethodGet)
+		v1.HandleFunc("/users/me/top/threads", a.requireUser(a.handleTopThreadsForUser)).Methods(http.MethodGet)
+		v1.HandleFunc("/users/me/top/dms", a.requireUser(a.handleTopDMsForUser)).Methods(http.MethodGet)
+		v1.HandleFunc("/users/me/top/inactive_channels", a.requireUser(a.handleTopInactiveChannelsForUser)).Methods(http.MethodGet)
+		v1.HandleFunc("/users/me/top/boards", a.requireUser(a.handleTopBoardsForUser)).Methods(http.MethodGet)
+		v1.HandleFunc("/users/me/top/playbooks", a.requireUser(a.handleTopPlaybooksForUser)).Methods(http.MethodGet)
+	}
 
 	// Telemetry — receives `trackEvent('insights', '<event>', props?)`
 	// posts from the webapp.

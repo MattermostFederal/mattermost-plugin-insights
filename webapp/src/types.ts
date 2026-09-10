@@ -1,8 +1,16 @@
 export type Scope = 'team' | 'my';
 
-export type TimeRange = 'today' | '7_day' | '28_day';
+// The 'today' range was retired because "since midnight" is a moving, partial
+// window a once-daily snapshot cannot answer coherently. '1_day' replaces it and
+// means *yesterday* — a closed, complete UTC day. Because that window has
+// already ended, one snapshot of it stays correct all day, which is what keeps
+// the cache to a single daily rebuild.
+//
+// The cost: today's activity does not appear anywhere until tomorrow.
+// See server/insights/timerange.go (WindowUTC).
+export type TimeRange = '1_day' | '7_day' | '28_day';
 
-export const TIME_RANGES: TimeRange[] = ['today', '7_day', '28_day'];
+export const TIME_RANGES: TimeRange[] = ['1_day', '7_day', '28_day'];
 export const SCOPES: Scope[] = ['my', 'team'];
 
 export interface TopReaction {
@@ -17,6 +25,38 @@ export interface TopChannel {
     name: string;
     team_id: string;
     message_count: number;
+}
+
+// ChannelActivity backs the channel-governance table. Unlike TopChannel it
+// carries the metadata columns and is returned for every channel in the team,
+// including ones with no activity — a channel with many members and zero
+// posts is what the table exists to surface.
+export interface ChannelActivity {
+    id: string;
+    type: string;
+    display_name: string;
+    name: string;
+    purpose: string;
+    header: string;
+    create_at: number;
+    last_post_at: number;
+    last_post_in_window: number;
+    message_count: number;
+    active_posters: number;
+    member_count: number;
+}
+
+// Summary counts describe the whole team, not the current page — the server
+// computes them because the client only ever holds one page.
+export interface ChannelGovernanceSummary {
+    total_channels: number;
+    active_channels: number;
+    with_purpose: number;
+    with_header: number;
+
+    // How many rows survived the search/filter. The other counts describe the
+    // whole team regardless, so searching does not move the denominators.
+    matching_channels: number;
 }
 
 export interface TopThread {
@@ -113,3 +153,10 @@ export type NewTeamMembersResponse = PaginatedResponse<NewTeamMember> & {
 };
 export type TopPlaybooksResponse = PaginatedResponse<TopPlaybook>;
 export type TopBoardsResponse = PaginatedResponse<TopBoard>;
+export type ChannelGovernanceResponse = PaginatedResponse<ChannelActivity> & {
+    summary: ChannelGovernanceSummary;
+
+    // When the snapshot was built, unix millis. Surfaced because the numbers
+    // are up to a day old by design.
+    generated_at: number;
+};

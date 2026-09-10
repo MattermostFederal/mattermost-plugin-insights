@@ -53,7 +53,10 @@ var (
 // NewDB returns a *sql.DB connected to the session's PostgreSQL test
 // container, with the test tables truncated. If Docker is not reachable, the
 // test is skipped with a clear message.
-func NewDB(t *testing.T) *sql.DB {
+//
+// The parameter is testing.TB rather than *testing.T so benchmarks can share
+// the same container as the correctness tests.
+func NewDB(t testing.TB) *sql.DB {
 	t.Helper()
 	mu.Lock()
 	defer mu.Unlock()

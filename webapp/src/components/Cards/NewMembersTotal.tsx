@@ -3,7 +3,8 @@
 // (commit 26617fcbdc).
 //
 // Adaptation: time-frame strings come from the same i18n keys
-// (`insights.newMembers.today` / `lastSevenDays` / `lastTwentyEightDays`).
+// (`insights.newMembers.lastSevenDays` / `lastTwentyEightDays`). The one-day
+// range is a closed window representing yesterday.
 
 import React, {memo, useCallback} from 'react';
 import {FormattedMessage} from 'react-intl';
@@ -19,11 +20,11 @@ interface Props {
 const NewMembersTotalComponent: React.FC<Props> = ({total, timeRange, openInsightsModal}) => {
     const timeFrameInfo = useCallback(() => {
         switch (timeRange) {
-        case 'today':
+        case '1_day':
             return (
                 <FormattedMessage
-                    id='insights.newMembers.today'
-                    defaultMessage='Joined the team today'
+                    id='insights.newMembers.yesterday'
+                    defaultMessage='Joined the team yesterday'
                 />
             );
         case '28_day':

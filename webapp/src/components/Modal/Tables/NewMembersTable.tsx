@@ -1,6 +1,11 @@
 // Ported from mattermost/mattermost
 // webapp/channels/src/components/activity_and_insights/insights/top_dms_and_new_members/new_members_table/new_members_table.tsx
 // (commit 26617fcbdc).
+//
+// Adaptation: the deprecated modal listed bare names. This one carries the
+// avatar and the "Say hello" wave the card used to show, because the card is
+// gone — the tile in the governance summary row opens this modal instead, so
+// it has to be the place you actually recognise people.
 
 import React, {memo, useCallback, useMemo, useState} from 'react';
 import {FormattedMessage} from 'react-intl';
@@ -11,8 +16,10 @@ import type {TableProps} from './types';
 import {Client} from '../../../client/Client';
 import {getCurrentTeamName} from '../../../redux/mmSelectors';
 import type {NewTeamMember, NewTeamMembersResponse} from '../../../types';
+import {getEmojiImageUrl} from '../../../utils/emoji';
 import {navigateTo} from '../../../utils/navigation';
 import {trackInsightsEvent} from '../../../utils/telemetry';
+import {HostAvatar} from '../../Avatar/HostAvatar';
 import type {Column, Row} from '../../DataGrid/DataGrid';
 import {DataGrid} from '../../DataGrid/DataGrid';
 import {usePaginatedTable} from '../usePaginatedTable';
@@ -22,19 +29,45 @@ function displayName(m: NewTeamMember): string {
     return fl || m.username;
 }
 
+const MILLIS_PER_DAY = 86_400_000;
+
+function startOfLocalDay(millis: number): number {
+    const d = new Date(millis);
+    return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+// Counts whole calendar days, not elapsed hours. A rolling 24-hour difference
+// labelled with calendar words reads wrong at the edges — somebody who joined
+// at 23:00 yesterday would show as "Today" at 09:00 this morning.
 function relativeTime(unixMillis: number): string {
     if (!unixMillis) {
         return '';
     }
-    const days = Math.floor((Date.now() - unixMillis) / 86_400_000);
-    if (days < 1) {
-        return 'today';
+    const days = Math.round((startOfLocalDay(Date.now()) - startOfLocalDay(unixMillis)) / MILLIS_PER_DAY);
+    if (days <= 0) {
+        return 'Today';
     }
     if (days === 1) {
-        return 'yesterday';
+        return 'Yesterday';
     }
     return `${days} days ago`;
 }
+
+const WaveEmoji: React.FC = () => {
+    const url = getEmojiImageUrl('wave');
+    if (!url) {
+        return <span aria-hidden='true'>{'👋'}</span>;
+    }
+    return (
+        <img
+            src={url}
+            alt=''
+            width={14}
+            height={14}
+            className='emoticon'
+        />
+    );
+};
 
 const NewMembersTableComponent: React.FC<TableProps> = ({timeRange, teamId}) => {
     const [totalCount, setTotalCount] = useState(0);
@@ -79,7 +112,26 @@ const NewMembersTableComponent: React.FC<TableProps> = ({timeRange, teamId}) => 
 
     const rows = useMemo<Row[]>(() => table.items.map((member) => ({
         cells: {
-            name: <span className='cell-text'>{displayName(member)}</span>,
+            name: (
+                <div className='new-members-cell'>
+                    <HostAvatar
+                        userID={member.id}
+                        lastPictureUpdate={member.last_picture_update}
+                        size='md'
+                    />
+                    <div className='new-members-cell__names'>
+                        <span className='cell-text'>{displayName(member)}</span>
+                        <span className='new-members-cell__username'>{`@${member.username}`}</span>
+                    </div>
+                    <span className='new-members-cell__hello'>
+                        <WaveEmoji/>
+                        <FormattedMessage
+                            id='insights.newMembers.sayHello'
+                            defaultMessage='Say hello'
+                        />
+                    </span>
+                </div>
+            ),
             position: <span className='cell-text'>{member.position || ''}</span>,
             joined: <span className='cell-text'>{relativeTime(member.create_at)}</span>,
         },

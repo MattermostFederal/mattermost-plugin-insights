@@ -19,14 +19,14 @@ import (
 // The integration filter on Posts.Props matches what TopChannels uses.
 
 // PostCountsByDuration returns post counts per (channelID, duration-bucket)
-// for the given channel ids since the given unix-millisecond timestamp,
+// for the given channel ids within the inclusive-start, exclusive-end window,
 // optionally filtered to posts authored by `userID` (pass empty string for
 // "all authors"). The grouping is "day" or "hour"; any other value yields
 // the day grouping.
 //
 // `location` is the timezone used to bucket timestamps — typically the
 // requesting user's timezone, taken from `*model.User.GetTimezoneLocation()`.
-func (s *Store) PostCountsByDuration(ctx context.Context, channelIDs []string, sinceUnixMillis int64, userID, grouping string, location string) ([]*insights.DurationPostCount, error) {
+func (s *Store) PostCountsByDuration(ctx context.Context, channelIDs []string, startUnixMillis, endUnixMillis int64, userID, grouping string, location string) ([]*insights.DurationPostCount, error) {
 	if len(channelIDs) == 0 {
 		return nil, nil
 	}
@@ -47,7 +47,8 @@ func (s *Store) PostCountsByDuration(ctx context.Context, channelIDs []string, s
 		LeftJoin("Channels ON Posts.ChannelId = Channels.Id").
 		Where(sq.And{
 			sq.Eq{"Posts.DeleteAt": 0},
-			sq.Gt{"Posts.CreateAt": sinceUnixMillis},
+			sq.GtOrEq{"Posts.CreateAt": startUnixMillis},
+			sq.Lt{"Posts.CreateAt": endUnixMillis},
 			sq.Eq{"Posts.Type": ""},
 			sq.Eq{"Channels.Id": channelIDs},
 		}).

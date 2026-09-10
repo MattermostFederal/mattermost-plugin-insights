@@ -145,7 +145,7 @@ func (s *Store) scanInactiveChannelList(ctx context.Context, rows *sql.Rows, per
 	}
 
 	page, hasNext := insights.Paginate(items, perPage)
-	if err := s.attachInactiveChannelParticipants(ctx, page); err != nil {
+	if err := s.AttachInactiveChannelParticipants(ctx, page); err != nil {
 		return nil, err
 	}
 	return &insights.TopInactiveChannelList{
@@ -154,10 +154,10 @@ func (s *Store) scanInactiveChannelList(ctx context.Context, rows *sql.Rows, per
 	}, nil
 }
 
-// attachInactiveChannelParticipants runs the secondary string_agg query
+// AttachInactiveChannelParticipants runs the secondary string_agg query
 // against ChannelMembers and populates each channel's Participants field.
 // Empty string_agg results yield an empty slice, not [""].
-func (s *Store) attachInactiveChannelParticipants(ctx context.Context, channels []*insights.TopInactiveChannel) error {
+func (s *Store) AttachInactiveChannelParticipants(ctx context.Context, channels []*insights.TopInactiveChannel) error {
 	if len(channels) == 0 {
 		return nil
 	}

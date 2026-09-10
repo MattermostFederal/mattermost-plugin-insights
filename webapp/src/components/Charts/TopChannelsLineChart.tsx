@@ -46,17 +46,9 @@ function paletteFor(theme: ReturnType<typeof getTheme>): string[] {
     ];
 }
 
-function formatBucketLabel(bucket: string, timeRange: TimeRange): string {
-    if (timeRange === 'today') {
-        // Hour bucket — RFC3339-shaped string from the server, e.g.
-        // "2024-01-10T10:00:00Z". Drop everything past the hour.
-        const d = new Date(bucket);
-        if (Number.isNaN(d.getTime())) {
-            return bucket;
-        }
-        return d.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit', hour12: false});
-    }
-
+// Buckets are always days now. Hour buckets existed only for the 'today'
+// range, which went away with the daily snapshot.
+function formatBucketLabel(bucket: string): string {
     // Day bucket — "YYYY-MM-DD". Render as "MMM DD".
     const d = new Date(bucket + 'T00:00:00');
     if (Number.isNaN(d.getTime())) {
@@ -76,7 +68,7 @@ export const TopChannelsLineChart: React.FC<Props> = ({topChannels, postCountByD
             series[channel.id] = sortedKeys.map((k) => postCountByDuration[k]?.[channel.id] ?? 0);
         }
         return {
-            labels: sortedKeys.map((k) => formatBucketLabel(k, timeRange)),
+            labels: sortedKeys.map((k) => formatBucketLabel(k)),
             rawLabels: sortedKeys,
             channelSeries: series,
         };
@@ -111,14 +103,12 @@ export const TopChannelsLineChart: React.FC<Props> = ({topChannels, postCountByD
                 ticks: {
                     callback(_value: string | number, index: number) {
                         const label = labels[index] ?? '';
+
+                        // 28 day buckets is too many to label individually;
+                        // 7 fits. The old hour-bucket thinning went away with
+                        // the 'today' range.
                         if (timeRange === '28_day') {
                             return index % 4 === 0 ? label : '';
-                        }
-                        if (timeRange === 'today' && labels.length > 12) {
-                            return index % 4 === 0 ? label : '';
-                        }
-                        if (timeRange === 'today' && labels.length > 8) {
-                            return index % 2 === 0 ? label : '';
                         }
                         return label;
                     },

@@ -5,6 +5,8 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/mattermost/mattermost/server/public/model"
+
+	"github.com/MattermostFederal/mattermost-plugin-insights/server/insights"
 )
 
 // handleTopInactiveChannelsForUser handles
@@ -19,11 +21,11 @@ func (a *API) handleTopInactiveChannelsForUser(w http.ResponseWriter, r *http.Re
 		return
 	}
 	teamID := r.URL.Query().Get("team_id")
-	since, ok := computeSinceMillis(w, params.timeRange, user)
+	window, ok := computeWindow(w, params.timeRange, user)
 	if !ok {
 		return
 	}
-	res, err := a.store.TopInactiveChannelsForUserSince(r.Context(), userID, teamID, since, params.page, params.perPage)
+	res, err := a.store.TopInactiveChannelsForUserSince(r.Context(), userID, teamID, window.StartMillis(), params.page, params.perPage)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -49,12 +51,48 @@ func (a *API) handleTopInactiveChannelsForTeam(w http.ResponseWriter, r *http.Re
 	if !ok {
 		return
 	}
-	since, ok := computeSinceMillis(w, params.timeRange, user)
+	window, ok := computeWindow(w, params.timeRange, user)
 	if !ok {
 		return
 	}
-	res, err := a.store.TopInactiveChannelsForTeamSince(r.Context(), teamID, userID, since, params.page, params.perPage)
+	rows, err := a.visibleChannelActivity(r.Context(), userID, teamID, params.timeRange, window)
 	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	// The deprecated query's `Channels.CreateAt < since` filter, preserved:
+	// a channel created inside the window cannot fairly be called inactive
+	// over that window. Applied here rather than in SQL because the cached
+	// aggregate is shared with surfaces that want every channel.
+	eligible := make([]*insights.ChannelActivity, 0, len(rows))
+	for _, c := range rows {
+		if c.CreateAt < window.StartMillis() {
+			eligible = append(eligible, c)
+		}
+	}
+
+	sortChannelActivity(eligible, true)
+	items, hasNext := pageChannelActivity(eligible, params.page, params.perPage)
+
+	res := &insights.TopInactiveChannelList{
+		ListData: insights.ListData{HasNext: hasNext},
+		Items:    make([]*insights.TopInactiveChannel, 0, len(items)),
+	}
+	for _, c := range items {
+		res.Items = append(res.Items, &insights.TopInactiveChannel{
+			ID:          c.ID,
+			Type:        c.Type,
+			DisplayName: c.DisplayName,
+			Name:        c.Name,
+			// Windowed, not all-time — see insights.ChannelActivity.
+			LastActivityAt: c.LastPostInWindow,
+			MessageCount:   c.MessageCount,
+			Participants:   []string{},
+		})
+	}
+
+	if err := a.store.AttachInactiveChannelParticipants(r.Context(), res.Items); err != nil {
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
 	}

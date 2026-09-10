@@ -23,6 +23,11 @@ import {HostAvatar} from '../Avatar/HostAvatar';
 import {WidgetEmptyState} from '../EmptyState/WidgetEmptyState';
 import {NewTeamMembersSkeleton} from '../Skeleton/CardSkeletons';
 
+// The inline list is a teaser, not the list — the card's chevron opens the
+// full paginated view. Capping it keeps a minor card from out-sizing the
+// governance table it sits under.
+const INLINE_LIMIT = 5;
+
 interface Props {
     items: NewTeamMember[];
     hasNext: boolean;
@@ -79,8 +84,8 @@ const NewTeamMembersListComponent: React.FC<Props> = ({items, status, error, tea
     };
 
     return (
-        <div className='top-dms-container'>
-            {items.map((member) => (
+        <div className='top-dms-container new-members-compact'>
+            {items.slice(0, INLINE_LIMIT).map((member) => (
                 <a
                     key={member.id}
                     className='top-dms-item new-members-item'
@@ -91,7 +96,7 @@ const NewTeamMembersListComponent: React.FC<Props> = ({items, status, error, tea
                     <HostAvatar
                         userID={member.id}
                         lastPictureUpdate={member.last_picture_update}
-                        size='xl'
+                        size='md'
                     />
                     <div className='dm-info'>
                         <div className='dm-name'>{displayName(member)}</div>

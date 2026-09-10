@@ -29,17 +29,17 @@ func (a *API) handleTopDMsForUser(w http.ResponseWriter, r *http.Request, userID
 	if !ok {
 		return
 	}
-	since, ok := computeSinceMillis(w, params.timeRange, user)
+	window, ok := computeWindow(w, params.timeRange, user)
 	if !ok {
 		return
 	}
 
-	res, err := a.store.TopDMsForUserSince(r.Context(), userID, since, params.page, params.perPage)
+	res, err := a.store.TopDMsForUserSince(r.Context(), userID, window.StartMillis(), params.page, params.perPage)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	if hydrateErr := a.hydrateTopDMs(r, userID, since, res); hydrateErr != nil {
+	if hydrateErr := a.hydrateTopDMs(r, userID, window.StartMillis(), res); hydrateErr != nil {
 		writeJSONError(w, http.StatusInternalServerError, hydrateErr.Error())
 		return
 	}

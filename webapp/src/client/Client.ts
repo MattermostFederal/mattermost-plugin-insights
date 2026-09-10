@@ -1,4 +1,7 @@
+import {requestHeaders} from './csrf';
+
 import type {
+    ChannelGovernanceResponse,
     NewTeamMembersResponse,
     TimeRange,
     TopBoardsResponse,
@@ -31,9 +34,7 @@ function buildQuery(params: Record<string, string | number | undefined>): string
 async function get<T>(path: string): Promise<T> {
     const response = await fetch(baseURL + path, {
         credentials: 'include',
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-        },
+        headers: requestHeaders('GET'),
     });
     if (!response.ok) {
         throw new Error(`insights request failed: ${response.status} ${response.statusText}`);
@@ -50,6 +51,20 @@ export const Client = {
     },
     getTopChannelsForTeam(teamId: string, timeRange: TimeRange, opts: PageOpts = {}) {
         return get<TopChannelsResponse>(`/teams/${teamId}/top/channels${buildQuery({time_range: timeRange, page: opts.page, per_page: opts.perPage})}`);
+    },
+
+    // Channel governance: every channel in the team with its activity and
+    // metadata, plus team-wide labelling coverage. Team scope only.
+    getChannelGovernance(teamId: string, timeRange: TimeRange, opts: PageOpts & {sort?: string; direction?: string; search?: string; filter?: string} = {}) {
+        return get<ChannelGovernanceResponse>(`/teams/${teamId}/channel_activity${buildQuery({
+            time_range: timeRange,
+            page: opts.page,
+            per_page: opts.perPage,
+            sort: opts.sort,
+            direction: opts.direction,
+            search: opts.search,
+            filter: opts.filter,
+        })}`);
     },
     getMyTopChannels(timeRange: TimeRange, opts: PageOpts & {teamId?: string} = {}) {
         return get<TopChannelsResponse>(`/users/me/top/channels${buildQuery({time_range: timeRange, page: opts.page, per_page: opts.perPage, team_id: opts.teamId})}`);

@@ -5,7 +5,12 @@ import (
 )
 
 const (
+	// TimeRangeToday is retired: "since midnight" is a moving, partial
+	// window that a periodically-rebuilt snapshot cannot answer coherently.
+	// TimeRange1Day replaces it with a fixed, closed one-day window, which
+	// the snapshot handles exactly as it does the longer ranges.
 	TimeRangeToday = "today"
+	TimeRange1Day  = "1_day"
 	TimeRange7Day  = "7_day"
 	TimeRange28Day = "28_day"
 
@@ -21,6 +26,11 @@ type Opts struct {
 
 type ListData struct {
 	HasNext bool `json:"has_next"`
+
+	// NotAvailable marks an insight that is switched off rather than empty,
+	// so the webapp can tell "this card is disabled" apart from "this card
+	// found no data". Omitted from the payload unless true.
+	NotAvailable bool `json:"not_available,omitempty"`
 }
 
 // Top Reactions
@@ -62,6 +72,82 @@ type TopChannel struct {
 	Name         string            `json:"name"`
 	TeamID       string            `json:"team_id"`
 	MessageCount int64             `json:"message_count"`
+}
+
+// Channel activity / governance
+
+// ChannelActivity is one channel's aggregate for a time window, before any
+// per-user visibility filtering has been applied. Rows are cached team-wide
+// and filtered at read time, so this deliberately carries no field that
+// depends on who is asking.
+//
+// The same row backs three surfaces: Top Channels (sorted by MessageCount
+// descending), Top Inactive Channels (ascending), and the channel-governance
+// table (untruncated, with the metadata columns shown).
+type ChannelActivity struct {
+	ID          string            `json:"id"`
+	Type        model.ChannelType `json:"type"`
+	DisplayName string            `json:"display_name"`
+	Name        string            `json:"name"`
+
+	// Governance metadata. Purpose and Header are the only free-text labels
+	// Mattermost channels carry — there is no tag field, and sidebar
+	// categories are per-user rather than per-channel.
+	Purpose  string `json:"purpose"`
+	Header   string `json:"header"`
+	CreateAt int64  `json:"create_at"`
+
+	// LastPostAt is all-time, read straight off Channels — "when was this
+	// channel last touched at all", which is what the governance table wants
+	// for a channel that has been silent for months.
+	//
+	// LastPostInWindow is the newest post inside the window, or 0 if there
+	// were none. Top Inactive Channels reports this one: its deprecated query
+	// derived LastActivityAt from max(Posts.CreateAt) over the windowed join,
+	// so a channel with no recent posts showed 0 rather than its real age.
+	LastPostAt       int64 `json:"last_post_at"`
+	LastPostInWindow int64 `json:"last_post_in_window"`
+
+	// MessageCount and ActivePosters cover the window; MemberCount is
+	// current. A high MemberCount against a zero MessageCount is the
+	// clearest "abandoned channel" signal in the table.
+	MessageCount  int64 `json:"message_count"`
+	ActivePosters int64 `json:"active_posters"`
+	MemberCount   int64 `json:"member_count"`
+}
+
+// ChannelGovernanceList is the channel-governance table's payload: a page of
+// channels plus a summary describing the whole team, not the page.
+type ChannelGovernanceList struct {
+	ListData
+	Items   []*ChannelActivity       `json:"items"`
+	Summary ChannelGovernanceSummary `json:"summary"`
+
+	// GeneratedAt is when the underlying snapshot was computed, in unix
+	// milliseconds, or 0 if it was built during this request. The UI shows it
+	// because the numbers are up to a day old by design.
+	GeneratedAt int64 `json:"generated_at"`
+}
+
+// ChannelGovernanceSummary answers "have we labelled our channels
+// effectively" over the full visible set. Computed server-side because the
+// client only ever holds one page.
+type ChannelGovernanceSummary struct {
+	TotalChannels int64 `json:"total_channels"`
+
+	// ActiveChannels had at least one non-integration post in the window.
+	// TotalChannels minus this is the size of the cleanup backlog.
+	ActiveChannels int64 `json:"active_channels"`
+
+	// WithPurpose and WithHeader are the labelling-coverage numerators.
+	// Mattermost channels carry no tags and sidebar categories are per-user,
+	// so these two free-text fields are the only labelling signal available.
+	WithPurpose int64 `json:"with_purpose"`
+	WithHeader  int64 `json:"with_header"`
+
+	// MatchingChannels is how many rows survived the search and filter. The
+	// other counts deliberately describe the whole team regardless.
+	MatchingChannels int64 `json:"matching_channels"`
 }
 
 // Top Inactive Channels

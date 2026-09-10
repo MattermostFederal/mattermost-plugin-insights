@@ -74,12 +74,13 @@ FROM Posts
 LEFT JOIN Channels ON Posts.ChannelId = Channels.Id
 LEFT JOIN ChannelMembers ON Posts.ChannelId = ChannelMembers.ChannelId
 WHERE Posts.DeleteAt = 0
-	AND Posts.CreateAt > $1
+	AND Posts.CreateAt >= $1
+	AND Posts.CreateAt < $2
 	AND Posts.Type = ''
-	AND Posts.UserId = $2
+	AND Posts.UserId = $3
 	AND Channels.DeleteAt = 0
 	AND (Channels.Type = 'O' OR Channels.Type = 'P')
-	AND ChannelMembers.UserId = $3
+	AND ChannelMembers.UserId = $4
 ` + postgresPropsBotFilter
 
 // TopChannelsForTeamSince returns the most active channels by message count
@@ -102,16 +103,16 @@ func (s *Store) TopChannelsForTeamSince(ctx context.Context, teamID, userID stri
 }
 
 // TopChannelsForUserSince returns the most active channels by the given
-// user's message count since the given unix-millisecond timestamp.
-func (s *Store) TopChannelsForUserSince(ctx context.Context, userID, teamID string, since int64, page, perPage int) (*insights.TopChannelList, error) {
+// user's message count within the given inclusive-start, exclusive-end window.
+func (s *Store) TopChannelsForUserSince(ctx context.Context, userID, teamID string, start, end int64, page, perPage int) (*insights.TopChannelList, error) {
 	offset := page * perPage
 	limit := perPage + 1
 
 	q := topChannelsForUserBaseSQL
-	args := []any{since, userID, userID}
+	args := []any{start, end, userID, userID}
 	if teamID != "" {
 		q += `
-		AND Channels.TeamId = $4`
+		AND Channels.TeamId = $5`
 		args = append(args, teamID)
 	}
 	q += `
@@ -119,10 +120,10 @@ GROUP BY Posts.ChannelId, Channels.Type, Channels.DisplayName, Channels.Name, Ch
 ORDER BY MessageCount DESC, Name ASC`
 	if teamID != "" {
 		q += `
-LIMIT $5 OFFSET $6`
+LIMIT $6 OFFSET $7`
 	} else {
 		q += `
-LIMIT $4 OFFSET $5`
+LIMIT $5 OFFSET $6`
 	}
 	args = append(args, limit, offset)
 

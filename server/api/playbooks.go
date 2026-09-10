@@ -14,7 +14,18 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/mattermost/mattermost/server/public/model"
+
+	"github.com/MattermostFederal/mattermost-plugin-insights/server/insights"
 )
+
+// unavailablePlaybookList mirrors unavailableBoardList (boards.go) for the
+// Top Playbooks routes.
+func unavailablePlaybookList() *insights.TopPlaybookList {
+	return &insights.TopPlaybookList{
+		ListData: insights.ListData{NotAvailable: true},
+		Items:    []*insights.TopPlaybook{},
+	}
+}
 
 // handleTopPlaybooksForTeam handles
 // GET /plugins/insights/api/v1/teams/{team_id}/top/playbooks
@@ -38,12 +49,17 @@ func (a *API) handleTopPlaybooksForTeam(w http.ResponseWriter, r *http.Request, 
 	if !ok {
 		return
 	}
-	since, ok := computeSinceMillis(w, params.timeRange, user)
+	window, ok := computeWindow(w, params.timeRange, user)
 	if !ok {
 		return
 	}
 
-	res, err := a.store.TopPlaybooksForTeam(r.Context(), teamID, userID, since, params.page, params.perPage)
+	if !EnableBoardsAndPlaybooks {
+		writeJSON(w, http.StatusOK, unavailablePlaybookList())
+		return
+	}
+
+	res, err := a.store.TopPlaybooksForTeam(r.Context(), teamID, userID, window.StartMillis(), params.page, params.perPage)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -75,12 +91,17 @@ func (a *API) handleTopPlaybooksForUser(w http.ResponseWriter, r *http.Request, 
 	if !ok {
 		return
 	}
-	since, ok := computeSinceMillis(w, params.timeRange, user)
+	window, ok := computeWindow(w, params.timeRange, user)
 	if !ok {
 		return
 	}
 
-	res, err := a.store.TopPlaybooksForUser(r.Context(), teamID, userID, since, params.page, params.perPage)
+	if !EnableBoardsAndPlaybooks {
+		writeJSON(w, http.StatusOK, unavailablePlaybookList())
+		return
+	}
+
+	res, err := a.store.TopPlaybooksForUser(r.Context(), teamID, userID, window.StartMillis(), params.page, params.perPage)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return

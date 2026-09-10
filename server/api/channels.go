@@ -23,16 +23,16 @@ func (a *API) handleTopChannelsForUser(w http.ResponseWriter, r *http.Request, u
 		return
 	}
 	teamID := r.URL.Query().Get("team_id")
-	since, ok := computeSinceMillis(w, params.timeRange, user)
+	window, ok := computeWindow(w, params.timeRange, user)
 	if !ok {
 		return
 	}
-	res, err := a.store.TopChannelsForUserSince(r.Context(), userID, teamID, since, params.page, params.perPage)
+	res, err := a.store.TopChannelsForUserSince(r.Context(), userID, teamID, window.StartMillis(), window.EndMillis(), params.page, params.perPage)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	if hydrateErr := a.attachChartData(r.Context(), res, since, params.timeRange, userID, user); hydrateErr != nil {
+	if hydrateErr := a.attachChartData(r.Context(), res, window.StartMillis(), window.EndMillis(), params.timeRange, userID, user); hydrateErr != nil {
 		writeJSONError(w, http.StatusInternalServerError, hydrateErr.Error())
 		return
 	}
@@ -57,17 +57,38 @@ func (a *API) handleTopChannelsForTeam(w http.ResponseWriter, r *http.Request, u
 	if !ok {
 		return
 	}
-	since, ok := computeSinceMillis(w, params.timeRange, user)
+	window, ok := computeWindow(w, params.timeRange, user)
 	if !ok {
 		return
 	}
-	res, err := a.store.TopChannelsForTeamSince(r.Context(), teamID, userID, since, params.page, params.perPage)
+	// Served from the daily snapshot rather than a per-request aggregation:
+	// one cached slice per (team, range), filtered to this user's visible
+	// channels, then sorted and paged in memory.
+	rows, err := a.visibleChannelActivity(r.Context(), userID, teamID, params.timeRange, window)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	sortChannelActivity(rows, false)
+	items, hasNext := pageChannelActivity(rows, params.page, params.perPage)
+
+	res := &insights.TopChannelList{
+		ListData: insights.ListData{HasNext: hasNext},
+		Items:    make([]*insights.TopChannel, 0, len(items)),
+	}
+	for _, c := range items {
+		res.Items = append(res.Items, &insights.TopChannel{
+			ID:           c.ID,
+			Type:         c.Type,
+			DisplayName:  c.DisplayName,
+			Name:         c.Name,
+			TeamID:       teamID,
+			MessageCount: c.MessageCount,
+		})
+	}
+
 	// Team-scoped chart aggregates over all authors (no user filter).
-	if hydrateErr := a.attachChartData(r.Context(), res, since, params.timeRange, "", user); hydrateErr != nil {
+	if hydrateErr := a.attachChartData(r.Context(), res, window.StartMillis(), window.EndMillis(), params.timeRange, "", user); hydrateErr != nil {
 		writeJSONError(w, http.StatusInternalServerError, hydrateErr.Error())
 		return
 	}
@@ -78,7 +99,7 @@ func (a *API) handleTopChannelsForTeam(w http.ResponseWriter, r *http.Request, u
 // and assembles the view-model map onto res.PostCountByDuration. If the
 // result has no items, the map is initialized to {} (so JSON clients always
 // see an object, never null).
-func (a *API) attachChartData(ctx context.Context, res *insights.TopChannelList, sinceMillis int64, timeRange, postAuthorUserID string, user *model.User) error {
+func (a *API) attachChartData(ctx context.Context, res *insights.TopChannelList, startMillis, endMillis int64, timeRange, postAuthorUserID string, user *model.User) error {
 	if res == nil {
 		return nil
 	}
@@ -87,17 +108,15 @@ func (a *API) attachChartData(ctx context.Context, res *insights.TopChannelList,
 		return nil
 	}
 
-	grouping := insights.PostsByDay
-	if timeRange == insights.TimeRangeToday {
-		grouping = insights.PostsByHour
-	}
-
-	loc := user.GetTimezoneLocation()
-	rows, err := a.store.PostCountsByDuration(ctx, res.ChannelIDs(), sinceMillis, postAuthorUserID, grouping, loc.String())
+	// Always day-grouped now. Hour grouping existed only for the "today"
+	// range, which the daily snapshot retired (insights.StartOfWindowUTC).
+	// Bucketing is UTC for the same reason the window is: the result is
+	// shared across the team, so it cannot follow the caller's clock.
+	rows, err := a.store.PostCountsByDuration(ctx, res.ChannelIDs(), startMillis, endMillis, postAuthorUserID, insights.PostsByDay, time.UTC.String())
 	if err != nil {
 		return err
 	}
-	start := time.UnixMilli(sinceMillis).In(loc)
+	start := time.UnixMilli(startMillis).UTC()
 	res.PostCountByDuration = insights.ToChannelPostCountByDuration(rows, &start, insights.NumberOfDaysForTimeRange(timeRange), res.ChannelIDs())
 	return nil
 }

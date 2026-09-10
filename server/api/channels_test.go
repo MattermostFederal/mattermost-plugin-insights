@@ -22,15 +22,17 @@ func decodeChannels(t *testing.T, w *httptest.ResponseRecorder) *insights.TopCha
 }
 
 func TestAPI_TopChannelsForUser_unauthenticated(t *testing.T) {
+	skipIfPersonalInsightsDisabled(t)
 	api := New(&apitest.AuthStub{}, &apitest.DirectoryStub{}, &apitest.StoreStub{})
 	w := httptest.NewRecorder()
-	api.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/api/v1/users/me/top/channels?time_range=today", nil))
+	api.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/api/v1/users/me/top/channels?time_range=7_day", nil))
 	if w.Code != http.StatusUnauthorized {
 		t.Fatalf("status = %d; want 401", w.Code)
 	}
 }
 
 func TestAPI_TopChannelsForUser_returnsItems(t *testing.T) {
+	skipIfPersonalInsightsDisabled(t)
 	auth := &apitest.AuthStub{Users: map[string]*model.User{testUserID: newRegularUser(testUserID)}}
 	store := &apitest.StoreStub{
 		TopChannelsForUserResult: &insights.TopChannelList{
@@ -58,7 +60,7 @@ func TestAPI_TopChannelsForTeam_noLicense(t *testing.T) {
 	auth := &apitest.AuthStub{Users: map[string]*model.User{testUserID: newRegularUser(testUserID)}}
 	api := New(auth, &apitest.DirectoryStub{}, &apitest.StoreStub{})
 	w := httptest.NewRecorder()
-	api.ServeHTTP(w, newAuthedRequest(http.MethodGet, "/api/v1/teams/"+testTeamID+"/top/channels?time_range=today", testUserID))
+	api.ServeHTTP(w, newAuthedRequest(http.MethodGet, "/api/v1/teams/"+testTeamID+"/top/channels?time_range=7_day", testUserID))
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("status = %d; want 403", w.Code)
 	}
@@ -71,26 +73,27 @@ func TestAPI_TopChannelsForTeam_notMember(t *testing.T) {
 	}
 	api := New(auth, &apitest.DirectoryStub{}, &apitest.StoreStub{})
 	w := httptest.NewRecorder()
-	api.ServeHTTP(w, newAuthedRequest(http.MethodGet, "/api/v1/teams/"+testTeamID+"/top/channels?time_range=today", testUserID))
+	api.ServeHTTP(w, newAuthedRequest(http.MethodGet, "/api/v1/teams/"+testTeamID+"/top/channels?time_range=7_day", testUserID))
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("status = %d; want 403 when not a team member", w.Code)
 	}
 }
 
 func TestAPI_TopChannelsForUser_attachesChartData(t *testing.T) {
+	skipIfPersonalInsightsDisabled(t)
 	auth := &apitest.AuthStub{Users: map[string]*model.User{testUserID: newRegularUser(testUserID)}}
 	store := &apitest.StoreStub{
 		TopChannelsForUserResult: &insights.TopChannelList{
 			Items: []*insights.TopChannel{{ID: "chA", Name: "alpha", MessageCount: 5}},
 		},
 		PostCountsByDurationResult: []*insights.DurationPostCount{
-			// "today" => hour buckets, RFC3339 keys post-formatting
-			{ChannelID: "chA", Duration: "2024-01-10T10", PostCount: 5},
+			// Day buckets — hour grouping went away with the "today" range.
+			{ChannelID: "chA", Duration: "2024-01-10", PostCount: 5},
 		},
 	}
 	api := New(auth, &apitest.DirectoryStub{}, store)
 	w := httptest.NewRecorder()
-	api.ServeHTTP(w, newAuthedRequest(http.MethodGet, "/api/v1/users/me/top/channels?time_range=today", testUserID))
+	api.ServeHTTP(w, newAuthedRequest(http.MethodGet, "/api/v1/users/me/top/channels?time_range=7_day", testUserID))
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d; want 200; body=%s", w.Code, w.Body.String())
 	}
@@ -98,9 +101,9 @@ func TestAPI_TopChannelsForUser_attachesChartData(t *testing.T) {
 	if body.PostCountByDuration == nil {
 		t.Fatalf("PostCountByDuration must be initialized")
 	}
-	// Today => hour buckets => map has keys formatted as RFC3339.
+	// Chart data is always day-bucketed for the closed snapshot window.
 	if len(body.PostCountByDuration) == 0 {
-		t.Errorf("expected at least one hour bucket; got empty map")
+		t.Errorf("expected at least one day bucket; got empty map")
 	}
 	// store.PostCountsByDuration must have been called with the user filter
 	// (this is a my-scope endpoint).
@@ -111,8 +114,18 @@ func TestAPI_TopChannelsForUser_attachesChartData(t *testing.T) {
 	if call.UserID != testUserID {
 		t.Errorf("user-scope endpoint should pass user filter; got UserID=%q", call.UserID)
 	}
-	if call.Grouping != insights.PostsByHour {
-		t.Errorf("today range should use hour grouping; got %q", call.Grouping)
+	if call.Grouping != insights.PostsByDay {
+		t.Errorf("chart data should use day grouping; got %q", call.Grouping)
+	}
+	if call.EndUnixMillis <= call.StartUnixMillis {
+		t.Errorf("chart window = [%d, %d); want a positive closed window", call.StartUnixMillis, call.EndUnixMillis)
+	}
+	if len(store.TopChannelsForUserCalls) != 1 {
+		t.Fatalf("expected 1 TopChannelsForUserSince call; got %d", len(store.TopChannelsForUserCalls))
+	}
+	channelCall := store.TopChannelsForUserCalls[0]
+	if channelCall.Start != call.StartUnixMillis || channelCall.End != call.EndUnixMillis {
+		t.Errorf("channel window = [%d, %d), chart window = [%d, %d)", channelCall.Start, channelCall.End, call.StartUnixMillis, call.EndUnixMillis)
 	}
 }
 
@@ -123,8 +136,8 @@ func TestAPI_TopChannelsForTeam_chartHasNoUserFilter(t *testing.T) {
 		TeamPerms: map[string]map[string]bool{testUserID: {testTeamID: true}},
 	}
 	store := &apitest.StoreStub{
-		TopChannelsForTeamResult: &insights.TopChannelList{
-			Items: []*insights.TopChannel{{ID: "chT", Name: "team-channel", MessageCount: 9}},
+		ChannelActivityResult: []*insights.ChannelActivity{
+			{ID: "chT", Name: "team-channel", Type: model.ChannelTypeOpen, MessageCount: 9},
 		},
 	}
 	api := New(auth, &apitest.DirectoryStub{}, store)
@@ -152,13 +165,13 @@ func TestAPI_TopChannelsForTeam_returnsItems(t *testing.T) {
 		TeamPerms: map[string]map[string]bool{testUserID: {testTeamID: true}},
 	}
 	store := &apitest.StoreStub{
-		TopChannelsForTeamResult: &insights.TopChannelList{
-			Items: []*insights.TopChannel{{ID: "ch1", Name: "general", MessageCount: 50}},
+		ChannelActivityResult: []*insights.ChannelActivity{
+			{ID: "ch1", Name: "general", Type: model.ChannelTypeOpen, MessageCount: 50},
 		},
 	}
 	api := New(auth, &apitest.DirectoryStub{}, store)
 	w := httptest.NewRecorder()
-	api.ServeHTTP(w, newAuthedRequest(http.MethodGet, "/api/v1/teams/"+testTeamID+"/top/channels?time_range=today", testUserID))
+	api.ServeHTTP(w, newAuthedRequest(http.MethodGet, "/api/v1/teams/"+testTeamID+"/top/channels?time_range=7_day", testUserID))
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d; want 200; body=%s", w.Code, w.Body.String())
 	}

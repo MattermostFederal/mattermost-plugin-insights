@@ -13,7 +13,7 @@ func TestStore_PostCountsByDuration_emptyChannelIDs(t *testing.T) {
 	db := storetest.NewDB(t)
 	s := NewFromDB(db)
 
-	got, err := s.PostCountsByDuration(context.Background(), nil, 0, "", insights.PostsByDay, "UTC")
+	got, err := s.PostCountsByDuration(context.Background(), nil, 0, 1, "", insights.PostsByDay, "UTC")
 	if err != nil {
 		t.Fatalf("PostCountsByDuration: %v", err)
 	}
@@ -44,7 +44,7 @@ func TestStore_PostCountsByDuration_groupsByDay(t *testing.T) {
 
 	since := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli()
 
-	got, err := s.PostCountsByDuration(context.Background(), []string{"chDayaaaaaaaaaaaaaaaaaaaaa"}, since, "", insights.PostsByDay, "UTC")
+	got, err := s.PostCountsByDuration(context.Background(), []string{"chDayaaaaaaaaaaaaaaaaaaaaa"}, since, day1Other+1, "", insights.PostsByDay, "UTC")
 	if err != nil {
 		t.Fatalf("PostCountsByDuration: %v", err)
 	}
@@ -80,7 +80,7 @@ func TestStore_PostCountsByDuration_groupsByHour(t *testing.T) {
 
 	since := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli()
 
-	got, err := s.PostCountsByDuration(context.Background(), []string{"chHouraaaaaaaaaaaaaaaaaaaa"}, since, "", insights.PostsByHour, "UTC")
+	got, err := s.PostCountsByDuration(context.Background(), []string{"chHouraaaaaaaaaaaaaaaaaaaa"}, since, t3+1, "", insights.PostsByHour, "UTC")
 	if err != nil {
 		t.Fatalf("PostCountsByDuration: %v", err)
 	}
@@ -114,7 +114,7 @@ func TestStore_PostCountsByDuration_userFilter(t *testing.T) {
 
 	since := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli()
 
-	got, err := s.PostCountsByDuration(context.Background(), []string{"chUseraaaaaaaaaaaaaaaaaaaa"}, since, testUser1ID, insights.PostsByDay, "UTC")
+	got, err := s.PostCountsByDuration(context.Background(), []string{"chUseraaaaaaaaaaaaaaaaaaaa"}, since, day0+1, testUser1ID, insights.PostsByDay, "UTC")
 	if err != nil {
 		t.Fatalf("PostCountsByDuration: %v", err)
 	}
@@ -141,11 +141,35 @@ func TestStore_PostCountsByDuration_excludesBotPosts(t *testing.T) {
 
 	since := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli()
 
-	got, err := s.PostCountsByDuration(context.Background(), []string{"chBotaaaaaaaaaaaaaaaaaaaaa"}, since, "", insights.PostsByDay, "UTC")
+	got, err := s.PostCountsByDuration(context.Background(), []string{"chBotaaaaaaaaaaaaaaaaaaaaa"}, since, day0+1, "", insights.PostsByDay, "UTC")
 	if err != nil {
 		t.Fatalf("PostCountsByDuration: %v", err)
 	}
 	if len(got) != 1 || got[0].PostCount != 1 {
 		t.Errorf("expected only the human post; got %#v", got)
+	}
+}
+
+func TestStore_PostCountsByDuration_usesClosedWindow(t *testing.T) {
+	db := storetest.NewDB(t)
+	s := NewFromDB(db)
+
+	channelID := "chWindowaaaaaaaaaaaaaaaaaa"
+	mustExec(t, db, `INSERT INTO channels (id, type, teamid, name) VALUES ($1, 'O', $2, 'window-channel')`, channelID, testTeamID)
+	start := time.Date(2024, 1, 10, 0, 0, 0, 0, time.UTC).UnixMilli()
+	end := time.Date(2024, 1, 11, 0, 0, 0, 0, time.UTC).UnixMilli()
+	postIDs := postIDGen('c')
+	for _, createAt := range []int64{start - 1, start, end - 1, end} {
+		mustExec(t, db,
+			`INSERT INTO posts (id, userid, channelid, createat, type, deleteat) VALUES ($1, $2, $3, $4, '', 0)`,
+			postIDs(), testUser1ID, channelID, createAt)
+	}
+
+	got, err := s.PostCountsByDuration(context.Background(), []string{channelID}, start, end, "", insights.PostsByDay, "UTC")
+	if err != nil {
+		t.Fatalf("PostCountsByDuration: %v", err)
+	}
+	if len(got) != 1 || got[0].PostCount != 2 {
+		t.Fatalf("got %#v; want the posts at start and immediately before end", got)
 	}
 }
