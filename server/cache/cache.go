@@ -19,6 +19,7 @@ package cache
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -223,7 +224,8 @@ func GetOrBuildWithTTL[T any](ctx context.Context, c *Cache, key string, ttl tim
 
 	typed, ok := result.Val.(T)
 	if !ok {
-		return zero, nil
+		c.Invalidate(key)
+		return zero, fmt.Errorf("cache key %q reused with different value type", key)
 	}
 	return typed, nil
 }

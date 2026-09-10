@@ -33,7 +33,7 @@ const MILLIS_PER_DAY = 86_400_000;
 
 function startOfLocalDay(millis: number): number {
     const d = new Date(millis);
-    return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
 }
 
 // Counts whole calendar days, not elapsed hours. A rolling 24-hour difference

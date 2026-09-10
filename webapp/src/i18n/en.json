@@ -51,6 +51,7 @@
     "insights.newMembers.yesterday": "Joined the team yesterday",
     "insights.newMembers.member": "Team member",
     "insights.newMembers.position": "Position",
+    "insights.newMembers.sayHello": "Say hello",
     "insights.newMembers.subTitle": "People who recently joined the team",
     "insights.newMembers.title": "New Team Members",
     "insights.newMembers.totalCount": "{total} total",

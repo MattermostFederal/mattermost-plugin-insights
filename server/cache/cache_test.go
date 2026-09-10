@@ -213,6 +213,57 @@ func TestGetOrBuild_buildTimeoutApplies(t *testing.T) {
 	}
 }
 
+func TestGetOrBuild_typeMismatchFromSingleflightReturnsError(t *testing.T) {
+	c := New(Options{TTL: time.Hour, Now: newClock().Now})
+
+	started := make(chan struct{})
+	release := make(chan struct{})
+	done := make(chan error, 1)
+	go func() {
+		_, err := GetOrBuild(context.Background(), c, "k", func(context.Context) (string, error) {
+			close(started)
+			<-release
+			return "value", nil
+		})
+		done <- err
+	}()
+
+	<-started
+	type result struct {
+		got int
+		err error
+	}
+	resultCh := make(chan result, 1)
+	go func() {
+		got, err := GetOrBuild(context.Background(), c, "k", func(context.Context) (int, error) {
+			return 1, nil
+		})
+		resultCh <- result{got: got, err: err}
+	}()
+
+	select {
+	case res := <-resultCh:
+		t.Fatalf("int caller returned early with %d, %v; want it waiting on the shared build", res.got, res.err)
+	case <-time.After(10 * time.Millisecond):
+	}
+
+	close(release)
+	res := <-resultCh
+
+	if res.err == nil {
+		t.Fatal("err = nil; want type mismatch")
+	}
+	if res.got != 0 {
+		t.Fatalf("got %d; want zero value on mismatch", res.got)
+	}
+	if buildErr := <-done; buildErr != nil {
+		t.Fatalf("string build err = %v; want nil", buildErr)
+	}
+	if c.Len() != 0 {
+		t.Errorf("Len = %d; want cache invalidated after mismatch", c.Len())
+	}
+}
+
 func TestGetOrBuild_keysAreIndependent(t *testing.T) {
 	c := New(Options{TTL: time.Hour, Now: newClock().Now})
 
