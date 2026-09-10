@@ -20,6 +20,7 @@ import React, {memo, useCallback, useState} from 'react';
 import {Modal as BootstrapModal} from 'react-bootstrap';
 import {FormattedMessage} from 'react-intl';
 
+import {requestHeaders} from '../../client/csrf';
 import type {TopThread} from '../../types';
 
 const Modal = BootstrapModal as unknown as React.ComponentType<Record<string, unknown>> & {
@@ -45,10 +46,7 @@ async function joinChannel(channelID: string, userID: string): Promise<JoinError
         const resp = await fetch(`/api/v4/channels/${encodeURIComponent(channelID)}/members`, {
             method: 'POST',
             credentials: 'include',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-            },
+            headers: requestHeaders('POST', {'Content-Type': 'application/json'}),
             body: JSON.stringify({user_id: userID}),
         });
         if (!resp.ok) {

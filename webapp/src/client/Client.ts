@@ -1,3 +1,5 @@
+import {requestHeaders} from './csrf';
+
 import type {
     ChannelGovernanceResponse,
     NewTeamMembersResponse,
@@ -32,9 +34,7 @@ function buildQuery(params: Record<string, string | number | undefined>): string
 async function get<T>(path: string): Promise<T> {
     const response = await fetch(baseURL + path, {
         credentials: 'include',
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-        },
+        headers: requestHeaders('GET'),
     });
     if (!response.ok) {
         throw new Error(`insights request failed: ${response.status} ${response.statusText}`);
