@@ -37,6 +37,15 @@ export interface Props {
     filter?: GovernanceFilter;
     onFilter?: (value: GovernanceFilter) => void;
 
+    // Paging is server-side for the same reason sorting is: the set is every
+    // channel in the team. Without these the rows past the first page are
+    // fetched by nobody and reachable by no one.
+    page?: number;
+    perPage?: number;
+    hasNext?: boolean;
+    onNextPage?: () => void;
+    onPreviousPage?: () => void;
+
     // When the snapshot was built, unix millis. 0 means "just now".
     generatedAt?: number;
 
@@ -231,6 +240,59 @@ const Toolbar: React.FC<ToolbarProps> = ({search, onSearch, filter, onFilter, ma
     );
 };
 
+interface PagerProps {
+    page: number;
+    perPage: number;
+    count: number;
+    hasNext: boolean;
+    total?: number;
+    loading?: boolean;
+    onNextPage?: () => void;
+    onPreviousPage?: () => void;
+}
+
+const Pager: React.FC<PagerProps> = ({page, perPage, count, hasNext, total, loading, onNextPage, onPreviousPage}) => {
+    if (!onNextPage && !onPreviousPage) {
+        return null;
+    }
+
+    const start = (page * perPage) + 1;
+    const end = (start + count) - 1;
+
+    // `matching_channels` is the size of the set actually being paged, so it
+    // tracks search and the filter chips — unlike the summary tiles, which
+    // describe the team regardless. With no summary to hand, fall back to
+    // what this page can prove: one more row exists iff there is a next page.
+    const of = total ?? (hasNext ? end + 1 : end);
+
+    return (
+        <div
+            className='governance-pager'
+            data-testid='governance-pager'
+        >
+            <span className='governance-pager__range'>{`${start} - ${end} of ${of}`}</span>
+            <button
+                type='button'
+                aria-label='Previous page'
+                className='btn btn-quaternary btn-icon btn-sm prev'
+                disabled={loading || page === 0}
+                onClick={onPreviousPage}
+            >
+                <i className='icon icon-chevron-left'/>
+            </button>
+            <button
+                type='button'
+                aria-label='Next page'
+                className='btn btn-quaternary btn-icon btn-sm next'
+                disabled={loading || !hasNext}
+                onClick={onNextPage}
+            >
+                <i className='icon icon-chevron-right'/>
+            </button>
+        </div>
+    );
+};
+
 // The numbers are up to a day old by design. Saying so is the difference
 // between "this channel is quiet" and "we last looked yesterday".
 const Freshness: React.FC<{generatedAt?: number}> = ({generatedAt}) => {
@@ -270,6 +332,7 @@ const NotSet: React.FC = () => (
 const ChannelGovernanceListComponent: React.FC<Props> = ({
     items, summary, loading, error, onSelectChannel, sort, ascending, onSort,
     search, onSearch, filter, onFilter, generatedAt, trailingTile, timeRange,
+    page = 0, perPage = 0, hasNext = false, onNextPage, onPreviousPage,
 }) => {
     const rows = useMemo(() => items.map((c) => {
         const isPrivate = c.type === 'P';
@@ -336,7 +399,10 @@ const ChannelGovernanceListComponent: React.FC<Props> = ({
         );
     }
 
-    if (loading) {
+    // A first load has nothing worth keeping on screen. A page turn does:
+    // blanking the whole component would unmount the pager button the user
+    // just clicked, dropping keyboard focus and the scroll position with it.
+    if (loading && items.length === 0) {
         return (
             <div className='ChannelGovernanceList'>
                 <div
@@ -353,7 +419,10 @@ const ChannelGovernanceListComponent: React.FC<Props> = ({
     }
 
     return (
-        <div className='ChannelGovernanceList'>
+        <div
+            className={`ChannelGovernanceList${loading ? ' is-loading' : ''}`}
+            aria-busy={loading ? 'true' : undefined}
+        >
             {summary && (
                 <CoverageSummary
                     summary={summary}
@@ -464,6 +533,18 @@ const ChannelGovernanceListComponent: React.FC<Props> = ({
                     </thead>
                     <tbody>{rows}</tbody>
                 </table>
+            )}
+            {items.length > 0 && (
+                <Pager
+                    page={page}
+                    perPage={perPage}
+                    count={items.length}
+                    hasNext={hasNext}
+                    total={summary?.matching_channels}
+                    loading={loading}
+                    onNextPage={onNextPage}
+                    onPreviousPage={onPreviousPage}
+                />
             )}
         </div>
     );

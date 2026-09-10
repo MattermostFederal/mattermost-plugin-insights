@@ -101,6 +101,11 @@ const ChannelGovernanceTableComponent: React.FC<GovernanceTableProps> = ({timeRa
             generatedAt={generatedAt}
             trailingTile={trailingTile}
             timeRange={timeRange}
+            page={table.page}
+            perPage={table.perPage}
+            hasNext={table.hasNext}
+            onNextPage={table.nextPage}
+            onPreviousPage={table.previousPage}
         />
     );
 };

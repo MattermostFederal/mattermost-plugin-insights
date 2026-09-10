@@ -378,6 +378,149 @@ for (const [timeRange, expected] of [
     });
 }
 
+// --- pagination ---
+// The audit set is every channel in the team, so a page never shows all of
+// it. Without a pager the rows past the first page are simply unreachable.
+
+test('renders a pager with the page range and the total', async ({mount}) => {
+    const component = await mount(
+        <ChannelGovernanceList
+            items={[busy, abandoned]}
+            summary={summary}
+            page={0}
+            perPage={2}
+            hasNext={true}
+            onNextPage={() => undefined}
+            onPreviousPage={() => undefined}
+        />,
+    );
+
+    await expect(component.locator('[data-testid="governance-pager"]')).toContainText('1 - 2 of 412');
+});
+
+test('the pager counts from the offset of the current page', async ({mount}) => {
+    const component = await mount(
+        <ChannelGovernanceList
+            items={[busy, abandoned]}
+            summary={summary}
+            page={3}
+            perPage={2}
+            hasNext={true}
+            onNextPage={() => undefined}
+            onPreviousPage={() => undefined}
+        />,
+    );
+
+    await expect(component.locator('[data-testid="governance-pager"]')).toContainText('7 - 8 of 412');
+});
+
+// Searching narrows what is pageable, so the denominator has to follow it —
+// unlike the summary tiles, which describe the team regardless.
+test('the pager total follows the filtered count when the view is narrowed', async ({mount}) => {
+    const component = await mount(
+        <ChannelGovernanceList
+            items={[busy, abandoned]}
+            summary={{...summary, matching_channels: 7}}
+            page={0}
+            perPage={2}
+            hasNext={true}
+            onNextPage={() => undefined}
+            onPreviousPage={() => undefined}
+        />,
+    );
+
+    await expect(component.locator('[data-testid="governance-pager"]')).toContainText('1 - 2 of 7');
+});
+
+test('paging buttons report which way the user moved', async ({mount}) => {
+    let moved: string | undefined;
+    const component = await mount(
+        <ChannelGovernanceList
+            items={[busy, abandoned]}
+            summary={summary}
+            page={1}
+            perPage={2}
+            hasNext={true}
+            onNextPage={() => {
+                moved = 'next';
+            }}
+            onPreviousPage={() => {
+                moved = 'previous';
+            }}
+        />,
+    );
+
+    await component.getByRole('button', {name: 'Next page'}).click();
+    expect(moved).toBe('next');
+
+    await component.getByRole('button', {name: 'Previous page'}).click();
+    expect(moved).toBe('previous');
+});
+
+test('disables previous on the first page and next on the last', async ({mount}) => {
+    const first = await mount(
+        <ChannelGovernanceList
+            items={[busy, abandoned]}
+            summary={summary}
+            page={0}
+            perPage={2}
+            hasNext={true}
+            onNextPage={() => undefined}
+            onPreviousPage={() => undefined}
+        />,
+    );
+    await expect(first.getByRole('button', {name: 'Previous page'})).toBeDisabled();
+    await expect(first.getByRole('button', {name: 'Next page'})).toBeEnabled();
+
+    await first.unmount();
+
+    const last = await mount(
+        <ChannelGovernanceList
+            items={[busy, abandoned]}
+            summary={summary}
+            page={1}
+            perPage={2}
+            hasNext={false}
+            onNextPage={() => undefined}
+            onPreviousPage={() => undefined}
+        />,
+    );
+    await expect(last.getByRole('button', {name: 'Previous page'})).toBeEnabled();
+    await expect(last.getByRole('button', {name: 'Next page'})).toBeDisabled();
+});
+
+test('omits the pager when paging is not wired up', async ({mount}) => {
+    const component = await mount(
+        <ChannelGovernanceList
+            items={[busy, abandoned]}
+            summary={summary}
+        />,
+    );
+    await expect(component.locator('[data-testid="governance-pager"]')).toHaveCount(0);
+});
+
+// Blanking the whole component on every page turn would unmount the button
+// that was just clicked, dropping keyboard focus and the scroll position.
+test('keeps the table and pager mounted while a later page loads', async ({mount}) => {
+    const component = await mount(
+        <ChannelGovernanceList
+            items={[busy, abandoned]}
+            summary={summary}
+            loading={true}
+            page={1}
+            perPage={2}
+            hasNext={true}
+            onNextPage={() => undefined}
+            onPreviousPage={() => undefined}
+        />,
+    );
+
+    await expect(component.locator('.governance-table')).toBeVisible();
+    await expect(component.locator('[data-testid="governance-pager"]')).toBeVisible();
+    await expect(component.getByRole('button', {name: 'Next page'})).toBeDisabled();
+    await expect(component.getByRole('button', {name: 'Previous page'})).toBeDisabled();
+});
+
 test('clicking the inactive filter chip fires onFilter with "inactive"', async ({mount}) => {
     let filtered: string | undefined;
     const component = await mount(

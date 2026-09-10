@@ -1796,6 +1796,27 @@ body.insights-product-active {
     .governance-table td {
         padding: 5px 12px;
     }
+
+    // Paging through the audit set. The previous page stays on screen while
+    // the next one loads, dimmed rather than blanked, so the pager keeps its
+    // place under the cursor.
+    &.is-loading .governance-table {
+        opacity: 0.5;
+    }
+
+    .governance-pager {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 4px;
+        padding-top: 4px;
+        color: rgba(var(--center-channel-color-rgb), 0.72);
+        font-size: 12px;
+    }
+
+    .governance-pager__range {
+        margin-right: 4px;
+    }
 }
 
 // Four-up summary row: three channel stats plus the New Team Members tile.
